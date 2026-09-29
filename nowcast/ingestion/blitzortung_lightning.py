@@ -2,7 +2,7 @@
 
 Neither IMD's nowcast API (still under review) nor Tomorrow.io (already
 integrated for temp/humidity/wind, see imd_nowcast.py) expose real lightning
-data — Tomorrow.io's realtime endpoint has no lightning field at all. This
+data - Tomorrow.io's realtime endpoint has no lightning field at all. This
 fills that specific gap with Blitzortung: a free, non-commercial, community
 VLF lightning-detection network (~1800 receiver stations worldwide,
 including India) that publishes real-time strikes over a public MQTT broker,
@@ -12,11 +12,11 @@ Broker/topic (`blitzortung.ha.sed.pl:1883`, `blitzortung/1.1/#`) verified
 against the widely-used homeassistant-blitzortung integration, which has
 used this exact endpoint in production for years. We connect briefly
 (`LISTEN_SECONDS`), collect whatever real strikes arrive filtered to a
-padded box around REGION_BBOX, and disconnect — there's no need for a
+padded box around REGION_BBOX, and disconnect - there's no need for a
 persistent connection since this runs once per ingestion cycle.
 
 Zero strikes in the listen window is a normal, valid result (no storm
-nearby right now), not a failure — only a broker/network error raises.
+nearby right now), not a failure - only a broker/network error raises.
 """
 import json
 import os
@@ -37,7 +37,7 @@ BBOX_PAD_DEG = 1.0  # catch strikes just outside REGION_BBOX that still matter t
 
 def fetch_strikes(bbox=None, listen_seconds=None):
     """Real lightning strikes seen in a short listen window, within a padded
-    `bbox` (defaults to the active region's storm-scale bbox — pass
+    `bbox` (defaults to the active region's storm-scale bbox - pass
     settings.INDIA_BBOX for all-India, see fetch_india_strikes).
 
     Returns list of {lat, lon, time_unix} dicts (may be empty). Strike
@@ -84,8 +84,7 @@ def fetch_strikes(bbox=None, listen_seconds=None):
 
 
 def fetch_india_strikes(listen_seconds=12):
-    """Real lightning strikes across all of India (settings.INDIA_BBOX) —
-    used by hazard_india.py. A longer listen window than the per-region
+    """Real lightning strikes across all of India (settings.INDIA_BBOX) - used by hazard_india.py. A longer listen window than the per-region
     default since India is ~60x the area, giving the sparse public network
     a better chance of catching a strike in whatever storms exist right now."""
     from nowcast.configs.settings import INDIA_BBOX

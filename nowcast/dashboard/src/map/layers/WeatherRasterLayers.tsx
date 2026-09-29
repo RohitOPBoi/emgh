@@ -1,9 +1,9 @@
-import { useMeghMap } from "../MapProvider";
+import { useAgrimMap } from "../MapProvider";
 import { useRasterLayer } from "../useRasterLayer";
 import type { WeatherLayer } from "../../types";
 
 export function WeatherRasterLayers({ layers, activeVar }: { layers: WeatherLayer[] | null; activeVar: string }) {
-  const { map } = useMeghMap();
+  const { map } = useAgrimMap();
   const byId = Object.fromEntries((layers ?? []).map((l) => [l.id, l]));
 
   useRasterLayer(map, "layer-temperature", byId.temperature?.image, byId.temperature?.bbox, {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { GeoJSONSource } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
-import { useMeghMap } from "../MapProvider";
+import { useAgrimMap } from "../MapProvider";
 import type { Bbox } from "../../types";
 
 function bboxPolygon(bbox: Bbox): FeatureCollection {
@@ -20,12 +20,12 @@ const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 const DEFAULT_COLOR = "#3fb6ff";
 
-/** User drag-drawn area selection — a live dashed preview while dragging,
+/** User drag-drawn area selection - a live dashed preview while dragging,
  * then a solid box once confirmed. Separate source/layer from RegionBox
  * (the fixed-size click-to-inspect box) since both can't share one style.
  *
  * `fillColor`/`fillOpacity` let the box actually show something instead of
- * reading as an empty rectangle when there's no hazard inside it — the
+ * reading as an empty rectangle when there's no hazard inside it - the
  * area-inspect panel can pick a weather variable (temp/humidity/wind/
  * pressure) and color the box by that variable's average, same palette as
  * the main map's weather overlay, so "no hazards here" doesn't look like
@@ -41,7 +41,7 @@ export function AreaBox({
   fillColor?: string;
   fillOpacity?: number;
 }) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
 
   useEffect(() => {
     if (!map || !ready || map.getSource("area-box")) return;

@@ -2,14 +2,14 @@
 
 Regrids satellite + radar onto the common demo grid, attaches lightning
 probability to the nearest grid cell, and stacks
-`[TIR1, WV, MWIR, reflectivity, lightning_prob]` per timestep — the same
+`[TIR1, WV, MWIR, reflectivity, lightning_prob]` per timestep - the same
 channel structure SEVIR uses (section 3, item 4). Maintains a rolling
 buffer of the last `INGEST_CYCLE_MINUTES`-spaced frames covering ~1-2h,
 used as model input context.
 
 All three sources currently share GRID_SIZE/REGION_BBOX by construction
 (they're synthetic, generated on the same grid), so regridding here is
-effectively identity — but `_regrid_nearest` is real nearest-neighbor
+effectively identity - but `_regrid_nearest` is real nearest-neighbor
 regridding, not a no-op shortcut, so swapping in real satellite (4-8km
 native) or radar (1km native) grids later only changes the input arrays,
 not this function.
@@ -86,7 +86,7 @@ def _lightning_to_grid(records, lon_grid, lat_grid, influence_km=6.0):
     IMD's lightning-probability categories are district/area products, not
     point taps, so each station's probability is spread over a Gaussian
     footprint (`influence_km`) rather than assigned to a single nearest
-    cell — otherwise the hail rule (needs reflectivity + cold top +
+    cell - otherwise the hail rule (needs reflectivity + cold top +
     lightning collocated) would almost never fire given how sparse the
     station network is relative to the grid.
     """
@@ -109,7 +109,7 @@ def build_fused_frame():
     """Assemble the current multi-channel raster from the latest ingestion files.
 
     Returns None if any source hasn't produced a snapshot yet (callers
-    should trigger the pullers first — see api/main.py's ingest cycle).
+    should trigger the pullers first - see api/main.py's ingest cycle).
     """
     sat = _load_latest_satellite()
     radar = _load_latest_radar()
@@ -152,7 +152,7 @@ def _parse_ts(filepath):
 
 
 def list_imd_timestamps():
-    """Every IMD snapshot timestamp currently on disk, oldest first — the
+    """Every IMD snapshot timestamp currently on disk, oldest first - the
     real (if short-lived) historical archive Replay is built on. Each pull
     cycle writes a new timestamped file rather than overwriting the last
     one, so this genuinely grows over the life of the server process."""
@@ -172,7 +172,7 @@ def build_fused_frame_for_timestamp(timestamp_str):
     pairing it with the nearest satellite/radar snapshots by time
     (ingestion cycles run together, so these are normally seconds apart).
 
-    This is real historical reconstruction — unlike pySTEPS' forecast
+    This is real historical reconstruction - unlike pySTEPS' forecast
     (which always regenerates its own synthetic present-moment history
     regardless of what timestamp you ask about, see pysteps_baseline.py),
     hail/downburst grid rules only need a single fused frame, so replaying
@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
     fr = build_fused_frame()
     if fr is None:
-        print("[fusion] missing a source snapshot — run the ingestion pullers first")
+        print("[fusion] missing a source snapshot - run the ingestion pullers first")
     else:
         for name, arr in fr["channels"].items():
             print(f"{name}: shape={arr.shape} min={arr.min():.1f} max={arr.max():.1f}")

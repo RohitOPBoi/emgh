@@ -6,7 +6,7 @@ def configured():
     return bool(os.getenv("TWILIO_ACCOUNT_SID")) and bool(os.getenv("TWILIO_AUTH_TOKEN")) and bool(os.getenv("ALERT_TO_NUMBERS"))
 
 def format_hazard_alert(district, state, hazard_type, max_severity, detail):
-    return f"MEGHDRISHTI ALERT: {max_severity.upper()} {hazard_type} hazard detected near {district}, {state}. {detail}"
+    return f"AGRIM ALERT: {max_severity.upper()} {hazard_type} hazard detected near {district}, {state}. {detail}"
 
 def send_sms(body):
     account_sid = os.getenv("TWILIO_ACCOUNT_SID")

@@ -8,7 +8,7 @@ package (EUMETSAT's own Python client) rather than reimplementing its
 OAuth2 + OpenSearch + Data Tailor job API by hand.
 
 Needs a free EUMETSAT account + API credentials (EUMETSAT_CONSUMER_KEY /
-EUMETSAT_CONSUMER_SECRET in .env) — register at user.eumetsat.int, then
+EUMETSAT_CONSUMER_SECRET in .env) - register at user.eumetsat.int, then
 generate a consumer key/secret at api.eumetsat.int/api-key (NOT your
 account login password).
 
@@ -16,21 +16,21 @@ STATUS: tested against live credentials (auth + collection search both
 confirmed working), but currently blocked by EUMETSAT-side licensing, not
 a code bug. Both direct Data Store download and Data Tailor customisation
 return `403 Unauthorised` even after accepting the "Meteosat < 1 hr
-latency" (Educational/Research) license in the EUMETSAT portal — most
+latency" (Educational/Research) license in the EUMETSAT portal - most
 likely a propagation delay between the portal's license-acceptance action
 and API-level entitlement, since HRSEVIRI is specifically the <1hr-latency
 product. One real bug was found and fixed in testing: `RegionOfInterest`'s
 `NSWE` field is typed `Optional[str]` but the API actually rejects a
-comma-joined string ("must be a list of 4 values") — it needs a plain
+comma-joined string ("must be a list of 4 values") - it needs a plain
 list of floats, which is what's used below. Falls back to
 copernicus_satellite.py (verified fully working) until the 403 clears.
 Two more things remain unverified until it actually succeeds once:
 - Whether Data Tailor's GeoTIFF export for HRSEVIRI is already-calibrated
   brightness temperature or needs an extra calibration/filter step.
-- The exact channel ordering in the exported GeoTIFF — assumed to match
+- The exact channel ordering in the exported GeoTIFF - assumed to match
   SEVIRI's standard 12-channel order (VIS0.6, VIS0.8, NIR1.6, IR3.9, WV6.2,
   WV7.3, IR8.7, IR9.7, IR10.8, IR12.0, IR13.4, HRV), i.e. IR10.8 at band
-  index 8 (0-indexed) — `IR108_BAND_INDEX` below.
+  index 8 (0-indexed) - `IR108_BAND_INDEX` below.
 Data Tailor jobs are also asynchronous (queued -> running -> done), so a
 single fetch can genuinely take 30s-2min, much slower than
 copernicus_satellite.py's synchronous Process API call.
@@ -48,7 +48,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from nowcast.configs.settings import EUMETSAT_CONSUMER_KEY, EUMETSAT_CONSUMER_SECRET
 
 COLLECTION_ID = "EO:EUM:DAT:MSG:HRSEVIRI"
-IR108_BAND_INDEX = 8  # see module docstring — assumed standard SEVIRI channel order
+IR108_BAND_INDEX = 8  # see module docstring - assumed standard SEVIRI channel order
 
 _LOOKBACK_MINUTES = 45  # MSG updates every 15min; generous margin for latency
 _JOB_TIMEOUT_SECONDS = 150  # Data Tailor jobs are genuinely slow (async processing)
@@ -66,8 +66,7 @@ def _get_token():
 def fetch_ir108_grid(bbox, grid_size):
     """Real MSG SEVIRI IR10.8 brightness temperature (Kelvin) over `bbox`,
     regridded to (grid_size, grid_size). Raises on any failure (missing
-    credentials, no recent product, job timeout/failure, decode error) —
-    callers catch this and fall back, same pattern as every other live
+    credentials, no recent product, job timeout/failure, decode error) - callers catch this and fall back, same pattern as every other live
     source in this repo."""
     import eumdac
     from eumdac.tailor_models import Chain, RegionOfInterest
@@ -90,7 +89,7 @@ def fetch_ir108_grid(bbox, grid_size):
     lon_min, lat_min, lon_max, lat_max = bbox
     # Despite the type hint (Optional[str]), the Data Tailor API rejects a
     # comma-joined string ("ROI's 'NSWE' section must be a list of 4
-    # values") — confirmed against a live 400 response. A plain list of
+    # values") - confirmed against a live 400 response. A plain list of
     # floats is what it actually wants.
     roi = RegionOfInterest(NSWE=[lat_max, lat_min, lon_min, lon_max])
     chain = Chain(product="HRSEVIRI", format="geotiff", roi=roi)
@@ -116,7 +115,7 @@ def fetch_ir108_grid(bbox, grid_size):
         with customisation.stream_output(output_name) as f:
             raw_bytes = f.read()
     finally:
-        customisation.delete()  # Data Tailor has a storage quota — always clean up
+        customisation.delete()  # Data Tailor has a storage quota - always clean up
 
     arr = tifffile.imread(io.BytesIO(raw_bytes))
     if arr.ndim == 3:

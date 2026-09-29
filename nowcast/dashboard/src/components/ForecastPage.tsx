@@ -37,7 +37,10 @@ function ModelColumn({ model }: { model: ModelId }) {
 
   useEffect(() => {
     let cancelled = false;
-    api.nowcastFrame(model, leadMinutes).then((f) => !cancelled && setFrame(f));
+    api
+      .nowcastFrame(model, leadMinutes)
+      .then((f) => !cancelled && setFrame(f))
+      .catch(() => !cancelled && setFrame(null));
     return () => {
       cancelled = true;
     };
@@ -63,7 +66,7 @@ function ModelColumn({ model }: { model: ModelId }) {
       <div className="section-title">
         <span style={{ fontSize: "var(--fs-md)", color: "var(--text)" }}>{meta.label}</span>
         <span className="count" style={{ color: "var(--text)" }}>
-          0–{meta.max}m
+          0–{meta.max >= 120 ? `${meta.max / 60} h` : `${meta.max} min`}
         </span>
       </div>
       <div className="label" style={{ lineHeight: 1.5 }}>
@@ -139,9 +142,15 @@ export function ForecastPage({ onClose }: { onClose: () => void }) {
   return (
     <div className="hazards-page" role="dialog" aria-label="Model Comparison">
       <div className="hazards-page-head">
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Cpu size={18} style={{ color: "var(--text-3)" }} />
-          <h1>Nowcast Model Benchmark & Cross-Validation</h1>
+        <div className="page-title">
+          <span className="page-eyebrow mono">
+            <Cpu size={12} /> Models
+          </span>
+          <h1>Nowcast models, side by side</h1>
+          <p className="page-sub">
+            Statistical optical flow against generative AI on the same scene. pySTEPS is calibrated in mm/hr; DGMR outputs a
+            unitless relative intensity (trained on UK radar) and is shown for comparison only.
+          </p>
         </div>
         <button className="icon-btn" onClick={onClose} aria-label="Close page" style={{ width: 32, height: 32 }}>
           <X size={16} />

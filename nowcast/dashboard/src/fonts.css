@@ -1,0 +1,10 @@
+/* Self-hosted (bundled) fonts - nothing is fetched from a font CDN at runtime,
+   so the console renders identically on an air-gapped control-room network. */
+@import "@fontsource/bebas-neue/400.css";
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource/instrument-serif/400-italic.css";
+@import "@fontsource-variable/manrope/index.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
+@import "@fontsource/tiro-devanagari-hindi/400.css";

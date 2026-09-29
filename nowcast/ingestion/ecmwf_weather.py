@@ -1,7 +1,7 @@
-"""Real ECMWF Open Data ingestion — temperature, humidity, wind.
+"""Real ECMWF Open Data ingestion - temperature, humidity, wind.
 
 No API key needed. ECMWF's older key-based public-datasets service
-(api.ecmwf.int) was mostly decommissioned in 2023 — what's left (S2S,
+(api.ecmwf.int) was mostly decommissioned in 2023 - what's left (S2S,
 TIGGE) is weeks-to-months scale, useless for nowcasting. This uses their
 newer Open Data service instead (`ecmwf-opendata` package), which is
 genuinely free and unauthenticated: real HRES operational forecast,
@@ -13,7 +13,7 @@ available step and caches each step's processed grid in-memory (ECMWF
 only updates every 6h, so there's no need to re-download per request).
 
 Downloads are global GRIB2 files (no server-side bbox filtering in this
-API) — a few MB each, subset locally to WIDE_BBOX after decoding.
+API) - a few MB each, subset locally to WIDE_BBOX after decoding.
 """
 import concurrent.futures
 import os
@@ -30,19 +30,18 @@ from nowcast.configs.settings import get_wide_bbox, WIDE_GRID_SIZE
 
 # The client's own defaults (maximum_retries=500, retry_after=120s) are
 # built for a long-running batch job, not a request that has to fail fast
-# and fall back to synthetic data — with those defaults, a single
+# and fall back to synthetic data - with those defaults, a single
 # transient hiccup (rate limiting, a network blip) can make a request
 # retry for hours with no way to tell it apart from "still downloading".
 # 3 retries with a much shorter backoff still tolerates real transient
 # failures without ever looking like a permanent hang.
 _CLIENT = Client(source="ecmwf", maximum_retries=3, retry_after=5)
-_CACHE = {}  # (step, wide_bbox) -> (fetched_at_epoch, grid_dict) — keyed by
+_CACHE = {}  # (step, wide_bbox) -> (fetched_at_epoch, grid_dict) - keyed by
 # bbox too since get_wide_bbox() now follows the active region, not a
 # fixed constant; serving a cached Maharashtra grid while viewing Delhi
 # would be wrong instead of just stale.
 _CACHE_TTL_SECONDS = 3 * 3600  # well under ECMWF's 6h update cadence
-_FETCH_TIMEOUT_SECONDS = 25  # the package sets no HTTP timeout of its own —
-# a real network hang (not just an error) would otherwise block forever
+_FETCH_TIMEOUT_SECONDS = 25  # the package sets no HTTP timeout of its own - # a real network hang (not just an error) would otherwise block forever
 
 
 def _nearest_step(lead_minutes):
@@ -82,7 +81,7 @@ def _fetch_and_process(step, wide_bbox):
     p_path = os.path.join(tmp_dir, "msl.grib2")
     # three separate retrievals: 2t/2d (heightAboveGround=2), 10u/10v
     # (heightAboveGround=10), and msl (meanSea level) each need their own
-    # cfgrib dataset — cfgrib refuses to merge different level types.
+    # cfgrib dataset - cfgrib refuses to merge different level types.
     _CLIENT.retrieve(type="fc", step=step, param=["2t", "2d"], target=t_path)
     _CLIENT.retrieve(type="fc", step=step, param=["10u", "10v"], target=w_path)
     _CLIENT.retrieve(type="fc", step=step, param=["msl"], target=p_path)
@@ -131,7 +130,7 @@ def _fetch_and_process(step, wide_bbox):
 def fetch_grid(lead_minutes=0):
     """Real ECMWF HRES grid for the nearest available forecast step.
     Raises on any failure (network, decode, missing package, or a hard
-    timeout — see _FETCH_TIMEOUT_SECONDS) — callers (weather_fields.py)
+    timeout - see _FETCH_TIMEOUT_SECONDS) - callers (weather_fields.py)
     catch this and fall back to the synthetic generator, same pattern as
     every other live-data source in this repo.
     """
@@ -144,7 +143,7 @@ def fetch_grid(lead_minutes=0):
 
     # Deliberately not a `with` block: ThreadPoolExecutor.__exit__ calls
     # shutdown(wait=True), which blocks until the worker thread finishes
-    # regardless of the timeout below — that would silently defeat the
+    # regardless of the timeout below - that would silently defeat the
     # whole point of this wrapper. shutdown(wait=False) lets the caller give
     # up on time without waiting for a hung thread to ever finish (Python
     # can't forcibly kill a thread; the orphaned download just gets

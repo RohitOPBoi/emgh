@@ -15,6 +15,6 @@ export const MapContext = createContext<MapContextValue>({
   attachContainer: () => {},
 });
 
-export function useMeghMap() {
+export function useAgrimMap() {
   return useContext(MapContext);
 }

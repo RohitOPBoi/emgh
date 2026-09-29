@@ -1,8 +1,8 @@
-"""Live weather/station nowcast puller for MeghDrishti.
+"""Live weather/station nowcast puller for Agrim.
 
 Writes normalized JSON to data/imd/<timestamp>.json.
 
-The output schema is kept compatible with the existing MeghDrishti
+The output schema is kept compatible with the existing Agrim
 pipeline:
 
 {
@@ -63,7 +63,7 @@ from nowcast.processing.storm_track import center_at
 
 
 # ---------------------------------------------------------------------------
-# Demo stations — six AWS-style points spread around whichever region is
+# Demo stations - six AWS-style points spread around whichever region is
 # active (settings.set_active_region), same relative layout (km offsets from
 # region center) the original hardcoded Pune stations used. Regenerated on
 # every call rather than a static list so switching regions doesn't leave
@@ -104,7 +104,7 @@ def get_stations():
 
 # ---------------------------------------------------------------------------
 # Existing lightning categories retained for compatibility
-# with downstream MeghDrishti code.
+# with downstream Agrim code.
 # ---------------------------------------------------------------------------
 
 LIGHTNING_CATS = {
@@ -140,7 +140,7 @@ def _fetch_live():
     """Fetch realtime weather observations from Tomorrow.io.
 
     The function converts Tomorrow.io's response into the normalized
-    MeghDrishti station schema used by the rest of the pipeline.
+    Agrim station schema used by the rest of the pipeline.
 
     Returns:
         list[dict]: Normalized weather records.
@@ -251,7 +251,7 @@ def _fetch_live():
         # probability, so we do NOT map it to lightning_prob.
         #
         # The existing lightning fields are retained only to preserve
-        # compatibility with the downstream MeghDrishti pipeline.
+        # compatibility with the downstream Agrim pipeline.
         # ---------------------------------------------------------------
 
         lightning_prob = 0.0
@@ -278,7 +278,7 @@ def _fetch_live():
             "lon": station["lon"],
             "timestamp": observation_time,
 
-            # Existing MeghDrishti fields
+            # Existing Agrim fields
             "ts_severity": thunderstorm_severity,
             "lightning_prob_cat": lightning_prob_cat,
             "lightning_prob": lightning_prob,
@@ -303,7 +303,7 @@ def _fetch_live():
 
 
 # ---------------------------------------------------------------------------
-# Real lightning overlay (Blitzortung) — independent of USE_LIVE_IMD, applies
+# Real lightning overlay (Blitzortung) - independent of USE_LIVE_IMD, applies
 # on top of whichever station-data source (live Tomorrow.io or mock) is
 # active, since neither of those has a real lightning field.
 # ---------------------------------------------------------------------------
@@ -314,8 +314,7 @@ def _apply_live_lightning(records):
     Proximity-decay from the nearest real strike seen in the listen window,
     same functional form as the mock generator's storm-proximity weighting
     so hazard thresholds (settings.py) stay meaningful either way. Zero
-    strikes nearby is a normal result (no storm right now), not an error —
-    it correctly zeroes out lightning_prob rather than leaving a stale mock
+    strikes nearby is a normal result (no storm right now), not an error - it correctly zeroes out lightning_prob rather than leaving a stale mock
     value in place.
     """
     from nowcast.ingestion.blitzortung_lightning import fetch_strikes
@@ -351,7 +350,7 @@ def _apply_live_lightning(records):
 def _fetch_mock():
     """Generate the existing synthetic weather/storm feed.
 
-    This remains as a fallback so MeghDrishti can still run when the
+    This remains as a fallback so Agrim can still run when the
     live weather API is unavailable.
     """
 

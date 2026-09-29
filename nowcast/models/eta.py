@@ -48,7 +48,7 @@ def storm_cells(hazard_records: list) -> list:
     try:
         bearing_deg, speed_kmh = _motion_from_pysteps()
         motion_source = "pysteps"
-        if speed_kmh < 1.0:  # degenerate flow on flat synthetic frames — don't ship a 0 ETA
+        if speed_kmh < 1.0:  # degenerate flow on flat synthetic frames - don't ship a 0 ETA
             raise ValueError("negligible motion")
     except Exception:
         bearing_deg, speed_kmh = _PLACEHOLDER_BEARING_DEG, _PLACEHOLDER_SPEED_KMH

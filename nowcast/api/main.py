@@ -2,7 +2,7 @@
 
 Serves hazard GeoJSON and storm ETA computed from the latest ingestion
 cycle. Inference is cached per file-write, recomputed only when a new
-ingestion snapshot lands (not on every request) — matches the "cached, not
+ingestion snapshot lands (not on every request) - matches the "cached, not
 per-call" requirement in the plan.
 """
 import base64
@@ -47,7 +47,7 @@ from nowcast.alerts import sms_alerts
 _SEVERITY_RANK = {"low": 0, "moderate": 1, "high": 2}
 _DISTRICT_CENTROIDS = {name: (lat, lon) for name, _state, lat, lon in DISTRICTS}
 
-app = FastAPI(title="MeghDrishti Nowcast API")
+app = FastAPI(title="Agrim Nowcast API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -57,13 +57,12 @@ app.add_middleware(
 
 _cache = {"records": [], "loaded_from": None}
 _forecast_cache = {"data": None, "computed_at": 0}
-_dgmr_cache = {"data": None, "computed_at": 0, "load_failed": False}
+_dgmr_cache = {"data": None, "computed_at": 0, "load_failed": False, "reason": None}
 _fusion_cache = {"frame": None, "computed_at": 0}
 _FORECAST_TTL_SECONDS = INGEST_CYCLE_MINUTES * 60
 _lock = threading.Lock()
 
-# key -> {"records", "loaded_from", "forecast", "fusion_frame", "warmed_at"} —
-# a full ingest+forecast+fusion snapshot per demo region, kept warm in the
+# key -> {"records", "loaded_from", "forecast", "fusion_frame", "warmed_at"} - # a full ingest+forecast+fusion snapshot per demo region, kept warm in the
 # background (_region_prewarm_loop) so switching regions via /regions/{key}
 # can apply an already-computed snapshot instantly instead of a live
 # 10-20s re-ingest (Tomorrow.io per station + RainViewer + Blitzortung's
@@ -74,7 +73,7 @@ _region_snapshots = {}
 _SNAPSHOT_FRESH_SECONDS = INGEST_CYCLE_MINUTES * 60 * 2
 
 # Real hail+lightning across all of India (hazard_india.py) plus the raw
-# all-India radar image /raw-layers serves — independent of the per-region
+# all-India radar image /raw-layers serves - independent of the per-region
 # demo system above, and sharing one RainViewer/Blitzortung fetch between
 # both rather than fetching twice. Cached and refreshed in the background
 # (_india_hazards_loop) rather than per-request: a fetch takes ~15s
@@ -84,14 +83,14 @@ _india_hazards_cache = {"hazards": [], "reflectivity": None, "computed_at": 0, "
 _INDIA_HAZARDS_TTL_SECONDS = 180
 
 # district_key ("District, State") -> unix timestamp of the last SMS sent
-# for that district — see _maybe_send_alerts. Purely in-memory, resets on
+# for that district - see _maybe_send_alerts. Purely in-memory, resets on
 # restart; fine for a hackathon-timescale demo.
 _alert_cooldowns = {}
 
 
 def _district_risk_summary(hazards):
     """Aggregate the real, point-level hazard list into one risk rollup per
-    district (judges think in districts, not grid cells) — count of
+    district (judges think in districts, not grid cells) - count of
     hail/lightning hits and the highest severity seen, per district.
     Districts with zero hazards right now are simply absent from the
     output (an empty list is the true state, not something to pad out to
@@ -108,6 +107,8 @@ def _district_risk_summary(hazards):
                 "lon": lon,
                 "hail_count": 0,
                 "lightning_count": 0,
+                "cloudburst_count": 0,
+                "downburst_count": 0,
                 "max_severity": "low",
             }
         entry = by_district[key]
@@ -115,18 +116,22 @@ def _district_risk_summary(hazards):
             entry["hail_count"] += 1
         elif h["type"] == "lightning":
             entry["lightning_count"] += 1
+        elif h["type"] == "cloudburst":
+            entry["cloudburst_count"] += 1
+        elif h["type"] == "downburst":
+            entry["downburst_count"] += 1
         if _SEVERITY_RANK[h["severity"]] > _SEVERITY_RANK[entry["max_severity"]]:
             entry["max_severity"] = h["severity"]
 
     summary = list(by_district.values())
-    summary.sort(key=lambda d: (_SEVERITY_RANK[d["max_severity"]], d["hail_count"] + d["lightning_count"]), reverse=True)
+    summary.sort(key=lambda d: (_SEVERITY_RANK[d["max_severity"]], d["hail_count"] + d["lightning_count"] + d["cloudburst_count"] + d["downburst_count"]), reverse=True)
     return summary
 
 
 def _maybe_send_alerts(district_summary):
     """Twilio SMS to ALERT_TO_NUMBERS for any district whose rollup just hit
     ALERT_MIN_SEVERITY (default "high") and isn't still in its post-alert
-    cooldown window — last-mile notification for farmers/local
+    cooldown window - last-mile notification for farmers/local
     administration, called out explicitly in the problem statement. Never
     allowed to raise into the caller: a Twilio outage or misconfiguration
     should not affect hazard detection itself."""
@@ -141,8 +146,9 @@ def _maybe_send_alerts(district_summary):
         last_sent = _alert_cooldowns.get(key, 0)
         if now - last_sent < ALERT_COOLDOWN_MINUTES * 60:
             continue
-        hazard_type = "hail" if entry["hail_count"] >= entry["lightning_count"] else "lightning"
-        detail = f"{entry['hail_count']} hail + {entry['lightning_count']} lightning detection(s) nearby."
+        counts = {k: entry[f"{k}_count"] for k in ("hail", "lightning", "cloudburst", "downburst")}
+        hazard_type = max(counts, key=counts.get)
+        detail = " + ".join(f"{n} {k}" for k, n in counts.items() if n) + " detection(s) nearby."
         body = sms_alerts.format_hazard_alert(entry["district"], entry["state"], hazard_type, entry["max_severity"], detail)
         try:
             sent = sms_alerts.send_sms(body)
@@ -153,9 +159,19 @@ def _maybe_send_alerts(district_summary):
             print(f"[api] alert send failed for {key}: {exc}")
 
 
+def _dgmr_reason(exc):
+    """Actionable explanation instead of a generic "see server log"."""
+    text = str(exc)
+    if isinstance(exc, ImportError) or "No module named" in text:
+        missing = getattr(exc, "name", None) or text.split("'")[1] if "'" in text else "a dependency"
+        return f"DGMR needs the optional '{missing}' package: pip install torch dgmr huggingface_hub"
+    if any(k in text.lower() for k in ("huggingface", "connection", "resolve", "proxy", "ssl", "timed out")):
+        return "DGMR could not download its pretrained weights from Hugging Face (network blocked?). Retry with internet access, or pre-download openclimatefix/dgmr."
+    return f"DGMR failed to load: {text[:160]}"
+
+
 def _refresh_dgmr():
-    """DGMR (section 4b) is loaded and run lazily, on first request only —
-    it's a comparison/demo feature, not on the critical startup path, and
+    """DGMR (section 4b) is loaded and run lazily, on first request only - it's a comparison/demo feature, not on the critical startup path, and
     weight download + CPU inference (~seconds) shouldn't slow down the
     primary pySTEPS-driven demo. Cached for the same TTL as pySTEPS."""
     if _dgmr_cache["load_failed"]:
@@ -173,6 +189,7 @@ def _refresh_dgmr():
     except Exception as exc:
         print(f"[api] DGMR unavailable, disabling for this process: {exc}")
         _dgmr_cache["load_failed"] = True
+        _dgmr_cache["reason"] = _dgmr_reason(exc)
         return None
 
 
@@ -187,7 +204,7 @@ def _refresh_fusion():
 
 
 def _refresh_forecast():
-    """pySTEPS forecast is expensive-ish (LK + extrapolation) — cache it for
+    """pySTEPS forecast is expensive-ish (LK + extrapolation) - cache it for
     the same ingestion cycle rather than recomputing per request."""
     now = time.time()
     if _forecast_cache["data"] is not None and now - _forecast_cache["computed_at"] < _FORECAST_TTL_SECONDS:
@@ -217,7 +234,7 @@ def _refresh():
 
 
 def _ingest_all():
-    """Run all three independent pullers (2a/2b/2c) — one source's failure
+    """Run all three independent pullers (2a/2b/2c) - one source's failure
     never blocks the others, matching the ingestion layer's failure-isolation
     requirement (section 2)."""
     for name, fn in (("imd", pull_imd), ("satellite", pull_satellite), ("radar", pull_radar)):
@@ -229,8 +246,8 @@ def _ingest_all():
 
 def _warm_region(key):
     """Run a full ingest+forecast+fusion cycle for `key` and stash the
-    result in _region_snapshots. Uses override_active_region — a
-    thread-local switch — rather than mutating the persistent global
+    result in _region_snapshots. Uses override_active_region - a
+    thread-local switch - rather than mutating the persistent global
     active region: this runs for ~10-20s per region, and an earlier version
     that mutated the shared global (even with a save/restore dance) let a
     concurrent request land mid-warm and transiently see the wrong region's
@@ -273,7 +290,7 @@ def _apply_snapshot(key):
         _forecast_cache["computed_at"] = snap["warmed_at"]
         _fusion_cache["frame"] = snap["fusion_frame"]
         _fusion_cache["computed_at"] = snap["warmed_at"]
-        # DGMR is a lazy, comparison-only feature (section 4b) — not part of
+        # DGMR is a lazy, comparison-only feature (section 4b) - not part of
         # the pre-warm set, just invalidated so it recomputes for the new
         # region on next request instead of showing the old region's frame.
         _dgmr_cache["data"] = None
@@ -284,8 +301,7 @@ def _apply_snapshot(key):
 def _region_prewarm_loop():
     """Keeps every region's snapshot warm so /regions/{key} is instant
     instead of a live re-ingest. One full pass over all REGIONS per
-    INGEST_CYCLE_MINUTES — same cadence the old single-region loop used —
-    then re-applies whichever region is currently active, so it keeps
+    INGEST_CYCLE_MINUTES - same cadence the old single-region loop used - then re-applies whichever region is currently active, so it keeps
     refreshing periodically exactly like before this existed."""
     while True:
         for key in REGIONS:
@@ -327,7 +343,7 @@ def startup():
     active = get_active_region_key()
     _warm_region(active)
     if not _apply_snapshot(active):
-        # _warm_region itself failed (e.g. every live source down) — fall
+        # _warm_region itself failed (e.g. every live source down) - fall
         # back to the original startup path so the app still comes up.
         _ingest_all()
         _refresh()
@@ -340,8 +356,7 @@ def startup():
 
 @app.get("/regions")
 def regions():
-    """Selectable demo regions (section: see settings.py REGIONS docstring) —
-    the storm-scale grid is a fixed-size box that can be repositioned to any
+    """Selectable demo regions (section: see settings.py REGIONS docstring) - the storm-scale grid is a fixed-size box that can be repositioned to any
     of these; real layers (RainViewer/Blitzortung/ECMWF) already cover
     wherever it's pointed."""
     return {
@@ -359,7 +374,7 @@ def set_region(key: str):
 
     if not _apply_snapshot(key):
         # Nothing pre-warmed yet for this region (e.g. requested before the
-        # background pre-warm loop's first full pass finishes) — fall back
+        # background pre-warm loop's first full pass finishes) - fall back
         # to a live ingest so the switch still works, just slower this once.
         with _lock:
             _forecast_cache["data"] = None
@@ -381,14 +396,14 @@ def set_region(key: str):
 def hazards(lead_time: int = Query(0, ge=0, le=360, description="minutes; advects points by real ECMWF wind, see note")):
     """Real hail + lightning hazard points across all of India (see
     models/hazard_india.py), served from a background-refreshed cache
-    (~3min cadence — a live fetch takes ~15s, too slow per-request).
+    (~3min cadence - a live fetch takes ~15s, too slow per-request).
 
-    `lead_time` does NOT re-run detection at a future time — there's no
+    `lead_time` does NOT re-run detection at a future time - there's no
     real all-India forecast mechanism for hail/lightning (same reason
     cloudburst/downburst were dropped entirely, see hazard_india.py).
     Instead each point is advected by the real ECMWF wind vector at its
     location: a standard simplified nowcasting technique (storms roughly
-    follow the steering flow), NOT a re-detected forecast — today's real
+    follow the steering flow), NOT a re-detected forecast - today's real
     detections, moved along today's real wind. The old per-region, all-4-
     hazard demo view (synthetic-backed downburst/cloudburst included) is
     still available at /hazards/region for whichever city is active."""
@@ -412,11 +427,11 @@ def hazards(lead_time: int = Query(0, ge=0, le=360, description="minutes; advect
         }
         for h in india_hazards
     ]
-    note = "real hail (RainViewer) + lightning (Blitzortung) across all of India"
+    note = "real hail, cloudburst (RainViewer radar) + lightning (Blitzortung) across all of India; downburst is a reflectivity-based proxy"
     if lead_time > 0:
         note += f"; positions advected {lead_time}min by real ECMWF wind, not a re-detected forecast"
     if error and not india_hazards:
-        note = f"all-India hazard detection unavailable ({error}) — showing last known / empty"
+        note = f"all-India hazard detection unavailable ({error}) - showing last known / empty"
     return {"type": "FeatureCollection", "features": features, "lead_time_minutes": lead_time, "note": note}
 
 
@@ -424,7 +439,7 @@ def hazards(lead_time: int = Query(0, ge=0, le=360, description="minutes; advect
 def hazards_region(lead_time: int = Query(0, description="minutes; snaps to nearest pySTEPS lead step")):
     """The original per-region demo hazard view (all 4 hazard types,
     downburst/cloudburst synthetic-backed) for whichever city is active via
-    /regions/{key} — superseded as the dashboard's default by /hazards
+    /regions/{key} - superseded as the dashboard's default by /hazards
     (real, all-India, hail+lightning only) but kept available here."""
     _refresh()
     features = []
@@ -471,7 +486,7 @@ def hazards_region(lead_time: int = Query(0, description="minutes; snaps to near
         print(f"[api] cloudburst forecast unavailable: {exc}")
 
     # hail + downburst (4c): grid-based rules on the fused raster, current
-    # timestep only — these don't have a pySTEPS-extrapolated future state.
+    # timestep only - these don't have a pySTEPS-extrapolated future state.
     if lead_time == 0:
         try:
             frame = _refresh_fusion()
@@ -504,14 +519,14 @@ def hazards_region(lead_time: int = Query(0, description="minutes; snaps to near
 def forecast(model: str = Query("pysteps", pattern="^(pysteps|dgmr|smaat)$")):
     """Forecast summary for the dashboard time slider / baseline-vs-AI
     comparison (section 4b). `model=pysteps` (default, 0-6h, calibrated
-    mm/hr) or `model=dgmr` (0-90min, relative intensity 0-1 — see
+    mm/hr) or `model=dgmr` (0-90min, relative intensity 0-1 - see
     dgmr_nowcast module docstring for why it's not in mm/hr)."""
     if model == "smaat":
         return {"available": False, "reason": "SmaAt-UNet is currently fine-tuning on SEVIR dataset. Weights not yet loaded."}
     if model == "dgmr":
         fc = _refresh_dgmr()
         if fc is None:
-            return {"available": False, "reason": "DGMR failed to load in this process (see server log)"}
+            return {"available": False, "reason": _dgmr_cache["reason"] or "DGMR failed to load (see server log)"}
         return {
             "available": True,
             "timestamps_min": fc["timestamps_min"],
@@ -542,17 +557,24 @@ def storm_eta():
     return {"cells": storm_cells(_cache["records"])}
 
 
-def _array_to_png_data_url(arr, cmap_name, vmin=None, vmax=None):
+def _array_to_png_data_url(arr, cmap_name, vmin=None, vmax=None, transparent_below=None, fade=None):
+    """Colour-map an array to a PNG data URL. `transparent_below` makes cells
+    under that value fully transparent (so "no rain" shows the basemap, not
+    the colormap's zero colour); `fade` ramps alpha in over that many units
+    above the threshold so echo edges are feathered rather than stair-stepped."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.cm as cm
     import matplotlib.colors as mcolors
     import numpy as np
     from PIL import Image
 
     norm = mcolors.Normalize(vmin=vmin if vmin is not None else float(arr.min()),
                               vmax=vmax if vmax is not None else float(arr.max()))
-    rgba = (cm.get_cmap(cmap_name)(norm(arr)) * 255).astype(np.uint8)
+    rgba = matplotlib.colormaps[cmap_name](norm(arr))
+    if transparent_below is not None:
+        ramp = max(float(fade or 0.0), 1e-6)
+        rgba[..., 3] = np.clip((arr - transparent_below) / ramp, 0.0, 1.0)
+    rgba = (rgba * 255).astype(np.uint8)
     # flip vertically: array row 0 is the southern edge of the grid, PNG row 0 is the top
     img = Image.fromarray(np.flipud(rgba), mode="RGBA")
     buf = io.BytesIO()
@@ -566,7 +588,7 @@ def nowcast_frame(
     lead_time: int = Query(10, description="minutes; snaps to nearest available lead step"),
 ):
     """Single forecast frame as a PNG overlay (section 4b's baseline-vs-AI
-    comparison toggle) — pySTEPS rain rate (calibrated mm/hr, turbo
+    comparison toggle) - pySTEPS rain rate (calibrated mm/hr, turbo
     colormap) or DGMR relative intensity (unitless 0-1, plasma colormap,
     distinct palette so it's visually obvious this is not the same unit)."""
     if model == "smaat":
@@ -574,7 +596,7 @@ def nowcast_frame(
     if model == "dgmr":
         fc = _refresh_dgmr()
         if fc is None:
-            return {"available": False, "reason": "DGMR failed to load in this process (see server log)"}
+            return {"available": False, "reason": _dgmr_cache["reason"] or "DGMR failed to load (see server log)"}
         idx = min(range(len(fc["timestamps_min"])), key=lambda i: abs(fc["timestamps_min"][i] - lead_time))
         frame = fc["intensity_forecast"][idx]
         image = _array_to_png_data_url(frame, "plasma", vmin=0, vmax=1)
@@ -597,20 +619,20 @@ def nowcast_frame(
 def raw_layers():
     """Satellite IR + radar reflectivity as image overlays (section 5a).
 
-    Satellite is real (tir1 only) when `USE_LIVE_SATELLITE=true` — see
-    satellite_insat.py / copernicus_satellite.py — sourced from Copernicus
+    Satellite is real (tir1 only) when `USE_LIVE_SATELLITE=true` - see
+    satellite_insat.py / copernicus_satellite.py - sourced from Copernicus
     Sentinel-3 SLSTR, not MOSDAC/INSAT; still scoped to the active demo
     region's small bbox (Sentinel-3/EUMETSAT don't give an easy all-India
     single-request equivalent the way RainViewer does for radar). Radar is
-    real when `USE_LIVE_RADAR=true` — see radar_puller.py /
-    rainviewer_radar.py — sourced from RainViewer across all of India (the
+    real when `USE_LIVE_RADAR=true` - see radar_puller.py /
+    rainviewer_radar.py - sourced from RainViewer across all of India (the
     same cached fetch /hazards' hail detection uses, see hazard_india.py),
     not scoped to the active region at all: real weather doesn't confine
     itself to whichever demo city happens to be selected.
     """
     frame = _refresh_fusion()
     if frame is None:
-        return {"layers": [], "note": "no fused frame yet — ingestion still warming up"}
+        return {"layers": [], "note": "no fused frame yet - ingestion still warming up"}
 
     from nowcast.configs.settings import INDIA_BBOX
     from nowcast.ingestion.radar_puller import USE_LIVE_RADAR
@@ -635,9 +657,9 @@ def raw_layers():
         layers.append(
             {
                 "id": "radar_reflectivity",
-                "label": "Radar reflectivity (dBZ) — all India",
+                "label": "Radar reflectivity (dBZ) - all India",
                 "bbox": INDIA_BBOX,
-                "image": _array_to_png_data_url(india_reflectivity, "turbo", vmin=0, vmax=65),
+                "image": _array_to_png_data_url(india_reflectivity, "turbo", vmin=0, vmax=65, transparent_below=5, fade=8),
                 "source": radar_source,
             }
         )
@@ -648,7 +670,7 @@ def raw_layers():
                 "id": "radar_reflectivity",
                 "label": "Radar reflectivity (dBZ)",
                 "bbox": frame["bbox"],
-                "image": _array_to_png_data_url(ch["reflectivity_dbz"], "turbo", vmin=0, vmax=65),
+                "image": _array_to_png_data_url(ch["reflectivity_dbz"], "turbo", vmin=0, vmax=65, transparent_below=5, fade=8),
                 "source": radar_source,
             }
         )
@@ -661,9 +683,9 @@ def raw_layers():
 @app.get("/weather-layers")
 def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF snaps to its nearest 3h step")):
     """Temperature/humidity/wind-speed as colored map overlays across the
-    wide demo region (§WIDE_BBOX) — not just the narrow storm bbox used for
+    wide demo region (§WIDE_BBOX) - not just the narrow storm bbox used for
     radar/satellite/hazards. Real ECMWF Open Data when USE_LIVE_ECMWF=true,
-    otherwise synthetic (see processing/weather_fields.py) — the response
+    otherwise synthetic (see processing/weather_fields.py) - the response
     always reports which one actually happened, since a live fetch failure
     silently falls back to synthetic. `lead_time` lets the frontend animate
     this alongside the hazard/nowcast lead-time slider instead of only ever
@@ -706,7 +728,7 @@ def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF s
 
     # Rainfall: real, all-India, derived from the same cached RainViewer
     # reflectivity /hazards' hail detection uses (see hazard_india.py) via
-    # the standard Marshall-Palmer Z-R relation (Z=200R^1.6) — a genuine
+    # the standard Marshall-Palmer Z-R relation (Z=200R^1.6) - a genuine
     # current rain-rate estimate, not a pySTEPS forecast, since there's no
     # real all-India forecast mechanism (no persisted real radar time
     # series for pySTEPS to extrapolate from). This replaced an earlier
@@ -729,7 +751,7 @@ def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF s
                 "unit": "mm/hr",
                 "bbox": INDIA_BBOX,
                 "vmin": 0, "vmax": 65,
-                "image": _array_to_png_data_url(rainrate, "turbo", vmin=0, vmax=65),
+                "image": _array_to_png_data_url(rainrate, "turbo", vmin=0, vmax=65, transparent_below=0.1, fade=1.5),
             }
         )
         
@@ -744,7 +766,7 @@ def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF s
         lon_min, lat_min, lon_max, lat_max = INDIA_BBOX
         for h in india_hazards:
             xi = int(round((h["lon"] - lon_min) / (lon_max - lon_min) * (risk.shape[1] - 1)))
-            yi = int(round((lat_max - h["lat"]) / (lat_max - lat_min) * (risk.shape[0] - 1)))
+            yi = int(round((h["lat"] - lat_min) / (lat_max - lat_min) * (risk.shape[0] - 1)))  # row 0 = south
             if 0 <= xi < risk.shape[1] and 0 <= yi < risk.shape[0]:
                 if h["type"] == "hail":
                     risk[yi, xi] += 2.0
@@ -766,11 +788,91 @@ def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF s
 
     source = g.get("source", "synthetic")
     note = (
-        "real ECMWF Open Data (HRES, CC-BY-4.0) — see nowcast/ingestion/ecmwf_weather.py"
+        "real ECMWF Open Data (HRES, CC-BY-4.0) - see nowcast/ingestion/ecmwf_weather.py"
         if source == "ecmwf-opendata"
-        else "synthetic ambient fields — not an IMD/MOSDAC/ECMWF product"
+        else "synthetic ambient fields - not an IMD/MOSDAC/ECMWF product"
     )
     return {"layers": layers, "note": note, "source": source}
+
+
+@app.get("/rain-field")
+def rain_field(lead_time: int = Query(0, ge=0, le=360, description="minutes ahead")):
+    """Rain-rate grid for the browser-side rain simulation.
+
+    All-India from live radar (RainViewer/IMD) when it is available - advected along the ambient wind for lead_time > 0 - otherwise the
+    active demo region's pySTEPS forecast frame, so the simulation always
+    has something real-pipeline-derived to draw and always says which."""
+    import numpy as np
+    from nowcast.configs.settings import INDIA_BBOX
+    from nowcast.processing import rain_field as rf
+
+    g = weather_fields.generate_grid(lead_time)
+    with _lock:
+        dbz = _india_hazards_cache["reflectivity"]
+
+    if dbz is not None:
+        rate = rf.dbz_to_rate(dbz)
+        rate = rf.advect(rate, INDIA_BBOX, g["wind_speed_ms"], g["wind_dir_deg"], lead_time)
+        return rf.encode(
+            rate, INDIA_BBOX, lead_time, "rainviewer-imd",
+            "current radar echo advected by ambient wind (persistence + steering flow)" if lead_time else "current radar (Marshall-Palmer Z-R)",
+            g["wind_speed_ms"], g["wind_dir_deg"],
+        )
+
+    try:
+        fc = _refresh_forecast()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"no rain data available: {exc}")
+    idx = min(range(len(fc["timestamps_min"])), key=lambda i: abs(fc["timestamps_min"][i] - lead_time))
+    return rf.encode(
+        np.asarray(fc["rainrate_forecast"][idx], dtype=np.float32), fc["bbox"], fc["timestamps_min"][idx],
+        f"pysteps-{fc.get('source', 'unknown')}", "pySTEPS Lucas-Kanade extrapolation (active demo region)",
+        g["wind_speed_ms"], g["wind_dir_deg"],
+        valid_note="all-India radar unavailable - showing the active demo region",
+    )
+
+
+@app.get("/system/status")
+def system_status():
+    """What is live, what is synthetic, and what the models are doing right
+    now - the honest provenance panel the landing page and dashboard show."""
+    from nowcast.configs.settings import (
+        USE_LIVE_IMD, USE_LIVE_ECMWF, USE_LIVE_RADAR, USE_LIVE_LIGHTNING, USE_LIVE_SATELLITE,
+    )
+
+    def mode(flag):
+        return "live" if flag else "synthetic"
+
+    with _lock:
+        hz = list(_india_hazards_cache["hazards"])
+        india_error = _india_hazards_cache["error"]
+        india_at = _india_hazards_cache["computed_at"]
+        has_radar = _india_hazards_cache["reflectivity"] is not None
+    counts = {}
+    for h in hz:
+        counts[h["type"]] = counts.get(h["type"], 0) + 1
+    return {
+        "sources": {
+            # The all-India view (hazards, rain field, radar layer) always tries
+            # RainViewer + Blitzortung each cycle regardless of the per-region
+            # USE_LIVE_* flags, so its status reflects whether that fetch worked.
+            "radar": {"label": "Radar reflectivity", "provider": "RainViewer (IMD network)", "mode": mode(has_radar or USE_LIVE_RADAR), "receiving": has_radar},
+            "lightning": {"label": "Lightning strikes", "provider": "Blitzortung VLF", "mode": mode(has_radar or USE_LIVE_LIGHTNING), "receiving": counts.get("lightning", 0) > 0},
+            "satellite": {"label": "Satellite IR", "provider": "Sentinel-3 SLSTR / MSG SEVIRI", "mode": mode(USE_LIVE_SATELLITE), "receiving": USE_LIVE_SATELLITE},
+            "model": {"label": "Weather model grid", "provider": "ECMWF Open Data", "mode": mode(USE_LIVE_ECMWF), "receiving": USE_LIVE_ECMWF},
+            "stations": {"label": "Station weather", "provider": "Tomorrow.io / IMD", "mode": mode(USE_LIVE_IMD), "receiving": USE_LIVE_IMD},
+        },
+        "hazards": {"total": len(hz), "by_type": counts, "updated_unix": india_at or None, "error": india_error},
+        "storm_cells": len(storm_cells(_cache["records"])) if _cache["records"] else 0,
+        "models": {
+            "pysteps": {"horizon_min": 360, "step_min": 10},
+            "dgmr": {"horizon_min": 90, "step_min": 15},
+            "smaat": {"horizon_min": 60, "available": False},
+        },
+        "ingest_cycle_min": INGEST_CYCLE_MINUTES,
+        "active_region": get_region_name(),
+        "regions": len(REGIONS),
+    }
 
 
 @app.get("/wind-vectors")
@@ -782,7 +884,7 @@ def wind_vectors(lead_time: int = Query(0, description="minutes ahead, same sema
 @app.get("/region-forecast")
 def region_forecast(lat: float, lon: float, lead_time: int = Query(0, ge=0, le=360)):
     """Point-sampled future trend for a user-selected region (temperature/
-    humidity/wind at a chosen lead time) — backs the dashboard's per-region
+    humidity/wind at a chosen lead time) - backs the dashboard's per-region
     time-scale panel. Real ECMWF Open Data when USE_LIVE_ECMWF=true (the
     lead-time rounds to ECMWF's nearest 3h forecast step), otherwise
     synthetic (see weather_fields.py). If the point falls inside the storm
@@ -815,12 +917,12 @@ def area_forecast(
     lead_time: int = Query(0, ge=0, le=360),
 ):
     """Min/mean/max current-and-forecast stats over a user drag-selected
-    area, not a single point (see /region-forecast for that) — backs the
+    area, not a single point (see /region-forecast for that) - backs the
     map's drag-to-select-area tool. Same real-vs-synthetic weather_fields.py
     backend as /region-forecast. Also includes the pySTEPS cloudburst
     rain-rate max/mean over whatever part of the area falls inside the
     storm-scale grid (REGION_BBOX), since that's a different, smaller bbox
-    than the weather-variable grid — None if the area doesn't overlap it."""
+    than the weather-variable grid - None if the area doesn't overlap it."""
     bbox = (lon_min, lat_min, lon_max, lat_max)
     stats = weather_fields.area_stats(bbox, lead_time)
 
@@ -852,9 +954,9 @@ def wms_proxy_bhuvan(request: Request):
     """Thin passthrough proxy for Bhuvan's WMS ("Bhuvan Maps" base layer).
 
     Bhuvan's server doesn't send CORS headers, so a browser can't fetch its
-    tiles directly (confirmed via direct testing — curl gets 200, browser
+    tiles directly (confirmed via direct testing - curl gets 200, browser
     fetch gets blocked by CORS). The target host is hardcoded, not taken
-    from the request, so this can't be used as an open SSRF proxy — it only
+    from the request, so this can't be used as an open SSRF proxy - it only
     ever forwards to Bhuvan's WMS with whatever WMS query params the caller
     sent (layers/bbox/etc.), which is exactly what a legitimate map tile
     request looks like.
@@ -875,7 +977,7 @@ _TIMESTAMP_RE = re.compile(r"^\d{8}T\d{6}Z$")
 
 @app.get("/history/timestamps")
 def history_timestamps():
-    """Every IMD ingestion snapshot currently on disk — the real (if
+    """Every IMD ingestion snapshot currently on disk - the real (if
     short-lived, since it only covers this server process's uptime)
     historical archive Replay is built on. Each ingestion cycle writes a
     new timestamped file rather than overwriting the last one."""
@@ -884,7 +986,7 @@ def history_timestamps():
 
 @app.get("/history/hazards")
 def history_hazards(timestamp: str):
-    """Reconstruct hazards for a specific historical IMD snapshot — real
+    """Reconstruct hazards for a specific historical IMD snapshot - real
     replay, not a re-run of "now". Station-level hazards (lightning, point
     hail flags) come directly from that snapshot's IMD records. Grid-based
     hail/downburst come from re-fusing the satellite/radar snapshots
@@ -893,7 +995,7 @@ def history_hazards(timestamp: str):
 
     Cloudburst is deliberately excluded: it comes from pySTEPS, which
     always regenerates its own synthetic present-moment history regardless
-    of what timestamp is requested (see pysteps_baseline.py) — there's no
+    of what timestamp is requested (see pysteps_baseline.py) - there's no
     persisted historical radar *sequence* to re-run it against, so a
     "replayed" cloudburst value would silently just be today's forecast
     mislabeled with a past timestamp. Better to omit it than fake it.
@@ -944,7 +1046,7 @@ def history_hazards(timestamp: str):
         "type": "FeatureCollection",
         "features": features,
         "timestamp": timestamp,
-        "note": "cloudburst omitted — pySTEPS has no persisted historical sequence to replay against, see docstring",
+        "note": "cloudburst omitted - pySTEPS has no persisted historical sequence to replay against, see docstring",
     }
 
 

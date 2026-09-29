@@ -1,14 +1,14 @@
 /**
  * Real WMS layer catalog reverse-engineered from MOSDAC's own CloudBurst DSS
- * (https://www.mosdac.gov.in/cloudburst/ — "CloudBurst Alerts over Western
+ * (https://www.mosdac.gov.in/cloudburst/ - "CloudBurst Alerts over Western
  * Himalayan Region"), the exact page the user copied this layer list from.
  *
  * Every id/layers value here was captured by driving that live page with a
  * real browser (Playwright), toggling each checkbox in isolation on a fresh
- * page load, and recording the resulting WMS GetMap request — then verified
+ * page load, and recording the resulting WMS GetMap request - then verified
  * again with a direct curl GetMap request returning HTTP 200 + a real PNG.
  * Nothing here is guessed. This is genuinely real ISRO/MOSDAC government GIS
- * data, not synthetic — unlike the rest of this project's hazard layers.
+ * data, not synthetic - unlike the rest of this project's hazard layers.
  *
  * MapLibre has no dedicated "WMS source" type; a raster source whose tile
  * URL contains the `{bbox-epsg-3857}` template variable is resolved
@@ -22,7 +22,7 @@ export interface WmsLayerDef {
   label: string;
   /** WMS service base URL (no query string). */
   endpoint: string;
-  /** The LAYERS param value exactly as MOSDAC's own client sends it — some
+  /** The LAYERS param value exactly as MOSDAC's own client sends it - some
    * are single names, some are comma-joined with reference layers
    * (worldview_continent,boundary_merge) the way MOSDAC composites them. */
   layers: string;
@@ -53,7 +53,7 @@ export const OVERLAY_LAYERS: WmsLayerDef[] = [
 export const BASE_LAYERS: WmsLayerDef[] = [
   { id: "lulc_india", label: "LULC (India)", endpoint: `${MOSDAC_GS}/worldview/wms`, layers: "worldview:lulc250k_1819_18856" },
   { id: "dem", label: "DEM", endpoint: `${MOSDAC_GS}/forecast_india/wms`, layers: "forecast_india:GTOPO_DEM" },
-  // routed through our own backend (see /wms-proxy/bhuvan) — Bhuvan's WMS
+  // routed through our own backend (see /wms-proxy/bhuvan) - Bhuvan's WMS
   // server doesn't send CORS headers, so a browser can't fetch it directly
   // (confirmed: curl gets 200, browser fetch gets blocked by CORS)
   { id: "bhuvan", label: "Bhuvan Maps", endpoint: `${API_BASE}/wms-proxy/bhuvan`, layers: "india3" },

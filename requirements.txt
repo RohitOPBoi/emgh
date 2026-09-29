@@ -16,5 +16,6 @@ cfgrib
 eccodes
 xarray
 paho-mqtt
+opencv-python-headless
 tifffile
 eumdac

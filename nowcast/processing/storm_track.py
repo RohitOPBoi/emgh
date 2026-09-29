@@ -4,7 +4,7 @@ Single source of truth for the fake storm's position over time, so the
 synthetic radar (2c), synthetic satellite (2b), and lightning intensity
 (2a/2d) all agree on where the storm is at a given timestamp instead of
 each mock generator drawing an independent, physically inconsistent cell.
-Real ingestion doesn't need this module — it exists only because we're
+Real ingestion doesn't need this module - it exists only because we're
 faking multiple sensors of the *same* storm.
 """
 import os
@@ -22,7 +22,7 @@ DEFAULT_CELL = dict(
 
 
 def _default_cell_latlon():
-    """Storm starts at the active region's center — recomputed on every call
+    """Storm starts at the active region's center - recomputed on every call
     so switching regions (settings.set_active_region) relocates the demo
     storm on the next ingest cycle, not just on process restart."""
     lon_min, lat_min, lon_max, lat_max = get_region_bbox()

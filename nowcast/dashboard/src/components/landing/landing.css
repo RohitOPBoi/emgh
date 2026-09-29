@@ -1,0 +1,789 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AGRIM - LANDING FOREGROUND
+   Editorial / cinematic type system. No cards-on-glass: hierarchy comes from
+   scale, hairline rules, and a strict 12-column grid. Photographic background
+   layers are styled separately in atmosphere.css and are not touched here.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.atm-landing-page {
+  --ink: #ffffff;
+  --ink-2: rgba(255, 255, 255, 0.86);
+  --ink-3: rgba(255, 255, 255, 0.66);
+  --rule: rgba(255, 255, 255, 0.22);
+  --ice: #a6e3ff;
+  --amber: #ffb43a;
+  --alert: #ff6a55;
+  --ok: #5eeaa8;
+  --gutter: clamp(20px, 5vw, 80px);
+  --shadow-text: 0 1px 2px rgba(0, 0, 0, 0.55), 0 2px 28px rgba(0, 4, 12, 0.7);
+  color: var(--ink);
+}
+
+.atm-landing-page ::selection {
+  background: var(--ice);
+  color: #03121c;
+}
+
+/* ── Shared type primitives ─────────────────────────────────────────────── */
+.ag-mono {
+  font-family: var(--font-num);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ag-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.015em;
+  line-height: 0.88;
+  margin: 0;
+  color: var(--ink);
+  text-shadow: var(--shadow-text);
+}
+
+.ag-serif {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  color: var(--ice);
+}
+
+.ag-body {
+  font-size: clamp(15px, 1.15vw, 18px);
+  line-height: 1.6;
+  color: var(--ink-2);
+  text-shadow: var(--shadow-text);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ── Act shells ─────────────────────────────────────────────────────────── */
+.atm-act {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 92px var(--gutter) 0;
+  will-change: opacity;
+}
+
+/* A soft, edgeless readability wash - sits behind type, never reads as a box. */
+.atm-act::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(2, 5, 12, 0.55) 0%, rgba(2, 5, 12, 0) 22%),
+    linear-gradient(0deg, rgba(2, 5, 12, 0.78) 0%, rgba(2, 5, 12, 0) 46%);
+}
+
+.ag-wrap {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Staggered entrance - keyed off `.is-in` set by the scroll choreography. */
+.ag-rise {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+.is-in .ag-rise {
+  opacity: 1;
+  transform: none;
+}
+
+.ag-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--ink);
+  text-shadow: var(--shadow-text);
+}
+.ag-eyebrow::before {
+  content: "";
+  width: 44px;
+  height: 1px;
+  background: var(--ink);
+  flex: none;
+}
+.ag-eyebrow b {
+  font-weight: 700;
+  color: var(--ice);
+}
+
+/* ── Navigation ─────────────────────────────────────────────────────────── */
+.atm-nav-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  padding: 0 var(--gutter);
+  background: linear-gradient(180deg, rgba(2, 5, 12, 0.72), rgba(2, 5, 12, 0));
+  pointer-events: none;
+}
+.atm-nav {
+  max-width: 1280px;
+  margin: 0 auto;
+  height: 76px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  pointer-events: auto;
+}
+.atm-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+  justify-self: start;
+}
+.atm-brand img {
+  display: block;
+  filter: drop-shadow(0 0 14px rgba(166, 227, 255, 0.35));
+}
+.atm-brand-word {
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.1em;
+  line-height: 0.9;
+  color: var(--ink);
+}
+.atm-brand-deva {
+  font-family: var(--font-deva);
+  font-size: 15px;
+  color: var(--ice);
+  margin-left: 2px;
+}
+.atm-tier-links {
+  display: flex;
+  gap: clamp(14px, 2.6vw, 40px);
+}
+.atm-tier-btn {
+  position: relative;
+  background: none;
+  border: 0;
+  padding: 10px 0;
+  cursor: pointer;
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  transition: color 0.25s;
+  display: inline-flex;
+  gap: 8px;
+}
+.atm-tier-btn i {
+  font-style: normal;
+  color: var(--ice);
+  opacity: 0.8;
+}
+.atm-tier-btn::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 1px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.atm-tier-btn:hover,
+.atm-tier-btn--active {
+  color: var(--ink);
+}
+.atm-tier-btn--active::after {
+  transform: scaleX(1);
+}
+.atm-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  justify-self: end;
+}
+.ag-link-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+}
+.ag-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  flex: none;
+}
+.ag-dot--online {
+  background: var(--ok);
+  box-shadow: 0 0 0 0 rgba(94, 234, 168, 0.7);
+  animation: ag-ping 2.2s infinite;
+}
+.ag-dot--offline {
+  background: var(--alert);
+}
+@keyframes ag-ping {
+  70% { box-shadow: 0 0 0 9px rgba(94, 234, 168, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(94, 234, 168, 0); }
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.ag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 46px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s, color 0.25s, border-color 0.25s, gap 0.3s;
+}
+.ag-btn--solid {
+  background: #fff;
+  color: #04121c;
+  box-shadow: 0 10px 40px rgba(166, 227, 255, 0.22);
+}
+.ag-btn--solid:hover {
+  background: var(--ice);
+  gap: 18px;
+  transform: translateY(-1px);
+}
+.ag-btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.ag-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #fff;
+}
+.ag-btn--xl {
+  height: 64px;
+  padding: 0 34px;
+  font-size: 13px;
+}
+.ag-btn svg {
+  flex: none;
+}
+
+/* ═══ ACT 01 - HERO ═══════════════════════════════════════════════════════ */
+.ag-hero {
+  justify-content: flex-end;
+  padding-bottom: clamp(20px, 4vh, 44px);
+  gap: clamp(20px, 3.2vh, 36px);
+}
+.ag-hero-title {
+  font-size: clamp(60px, 10.4vw, 168px);
+}
+.ag-hero-title .ag-serif {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 0.86em;
+  line-height: 0.95;
+  margin-top: 0.02em;
+  color: var(--ink);
+  text-shadow: var(--shadow-text);
+}
+.ag-hero-title .ag-serif em {
+  font-style: italic;
+  color: var(--ice);
+}
+.ag-hero-row {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(24px, 5vw, 80px);
+  align-items: end;
+}
+.ag-hero-row .ag-body {
+  max-width: 34em;
+}
+.ag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.ag-hero-cta-note {
+  display: none;
+}
+
+/* Live ribbon - four figures on hairlines, not four boxes. */
+.ag-ribbon {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--rule);
+}
+.ag-ribbon-cell {
+  padding: 16px clamp(12px, 2vw, 28px) 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ag-ribbon-cell + .ag-ribbon-cell {
+  padding-left: clamp(12px, 2vw, 28px);
+  border-left: 1px solid var(--rule);
+}
+.ag-ribbon-label {
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ag-ribbon-value {
+  font-family: var(--font-display);
+  font-size: clamp(34px, 3.6vw, 54px);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-shadow: var(--shadow-text);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.ag-ribbon-value small {
+  font-family: var(--font-num);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--ice);
+}
+.ag-ribbon-meta {
+  color: var(--ink-3);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.ag-scroll-cue {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 4px 0 0;
+}
+.ag-scroll-cue span:last-child {
+  width: 1px;
+  height: 22px;
+  background: linear-gradient(var(--ink), transparent);
+  animation: ag-drip 2.4s ease-in-out infinite;
+}
+@keyframes ag-drip {
+  0%, 100% { transform: scaleY(0.4); transform-origin: top; opacity: 0.5; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+/* ═══ ACT 02 - PIPELINE ═══════════════════════════════════════════════════ */
+.ag-head {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  gap: clamp(24px, 5vw, 80px);
+  align-items: end;
+  margin-top: clamp(4px, 2vh, 28px);
+}
+.ag-h2 {
+  font-size: clamp(50px, 7.4vw, 118px);
+}
+.ag-h2 .ag-serif {
+  font-size: 0.9em;
+  color: var(--ice);
+}
+.ag-pipeline {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  position: relative;
+  padding-top: 38px;
+}
+/* the timeline spine */
+.ag-pipeline::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--ice), rgba(255, 255, 255, 0.35) 70%, rgba(255, 255, 255, 0.12));
+}
+.ag-step {
+  position: relative;
+  padding-right: clamp(14px, 2.2vw, 36px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.ag-step::before {
+  content: "";
+  position: absolute;
+  top: -38px;
+  left: 0;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #04070d;
+  border: 2px solid var(--ice);
+  box-shadow: 0 0 0 6px rgba(166, 227, 255, 0.14);
+}
+.ag-step-num {
+  font-family: var(--font-display);
+  font-size: clamp(54px, 5.6vw, 88px);
+  line-height: 0.85;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.85);
+}
+.ag-step h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(26px, 2.5vw, 38px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-shadow: var(--shadow-text);
+  line-height: 1;
+}
+.ag-step p {
+  margin: 0;
+  font-size: clamp(13.5px, 1vw, 15.5px);
+  line-height: 1.55;
+  color: var(--ink-2);
+  font-weight: 500;
+  text-shadow: var(--shadow-text);
+}
+.ag-step-tags {
+  color: var(--ice);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  margin-top: 2px;
+}
+.ag-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px clamp(18px, 2.6vw, 40px);
+  padding: 16px 0 clamp(18px, 3.5vh, 36px);
+  margin-top: clamp(20px, 3.5vh, 40px);
+  border-top: 1px solid var(--rule);
+  color: var(--ink-2);
+}
+.ag-sources > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.ag-sources em {
+  font-style: normal;
+  color: var(--ink-3);
+}
+.ag-sources .ag-dot--live { background: var(--ok); }
+.ag-sources .ag-dot--synthetic { background: var(--amber); }
+
+/* ═══ ACT 03 - HAZARDS ════════════════════════════════════════════════════ */
+.ag-hazard-table {
+  margin-top: auto;
+  border-top: 1px solid var(--rule);
+}
+.ag-hazard-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 3.2fr) minmax(0, 3fr) minmax(0, 4.4fr) minmax(80px, 1fr);
+  gap: clamp(12px, 2vw, 32px);
+  align-items: center;
+  padding: clamp(10px, 1.9vh, 20px) 0;
+  border-bottom: 1px solid var(--rule);
+  transition: background 0.3s, padding 0.3s;
+}
+.ag-hazard-row:hover {
+  background: linear-gradient(90deg, rgba(166, 227, 255, 0.1), transparent 70%);
+}
+.ag-hz-idx {
+  color: var(--ink-3);
+}
+.ag-hz-name {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 3.4vw, 54px);
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-shadow: var(--shadow-text);
+}
+.ag-hz-name svg {
+  flex: none;
+  color: var(--hz, var(--ice));
+}
+.ag-hz-rule {
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.7;
+  letter-spacing: 0.1em;
+  text-shadow: var(--shadow-text);
+}
+.ag-hz-rule small {
+  display: block;
+  color: var(--ink-3);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+.ag-hz-desc {
+  font-size: clamp(13px, 1vw, 15px);
+  line-height: 1.5;
+  color: var(--ink-2);
+  font-weight: 500;
+  text-shadow: var(--shadow-text);
+  margin: 0;
+}
+.ag-hz-count {
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: clamp(36px, 3.8vw, 60px);
+  line-height: 1;
+  color: var(--hz, var(--ink));
+  text-shadow: var(--shadow-text);
+}
+.ag-hz-count small {
+  display: block;
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.ag-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px clamp(20px, 3vw, 48px);
+  padding: 16px 0 clamp(18px, 3.5vh, 36px);
+  color: var(--ink-2);
+}
+.ag-models b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ═══ ACT 04 - FINALE ═════════════════════════════════════════════════════ */
+.ag-finale {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+}
+.ag-finale .ag-wrap {
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 3vh, 34px);
+  position: relative;
+}
+.ag-deva-mark {
+  font-family: var(--font-deva);
+  font-size: clamp(22px, 2.4vw, 34px);
+  color: var(--ice);
+  text-shadow: var(--shadow-text);
+  letter-spacing: 0.1em;
+}
+.ag-finale-title {
+  font-size: clamp(64px, 12.4vw, 200px);
+}
+.ag-finale-title .ag-serif {
+  display: block;
+  font-size: 0.5em;
+  margin-top: 0.12em;
+  color: var(--ink);
+  line-height: 1;
+}
+.ag-finale-title .ag-serif em {
+  color: var(--ice);
+}
+.ag-facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px clamp(28px, 5vw, 72px);
+  padding-top: 8px;
+}
+.ag-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+.ag-fact strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(34px, 3.4vw, 52px);
+  letter-spacing: 0.03em;
+  line-height: 1;
+  color: var(--ink);
+  text-shadow: var(--shadow-text);
+}
+.ag-fact span {
+  color: var(--ink-3);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+.ag-foot {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: clamp(16px, 3vh, 30px);
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px 32px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-3);
+  text-align: left;
+  font-size: 10px;
+}
+.ag-foot b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ── Left altitude rail ─────────────────────────────────────────────────── */
+.atm-hud-strip {
+  position: fixed;
+  left: clamp(10px, 1.6vw, 26px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  pointer-events: none;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  height: 260px;
+}
+.atm-hud-bar {
+  position: relative;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.28);
+}
+.atm-hud-bar-fill {
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 3px;
+  background: var(--ice);
+  box-shadow: 0 0 14px var(--ice);
+  transition: height 0.15s linear;
+}
+.atm-hud-read {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--ink-3);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 10px;
+}
+.atm-hud-read strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .atm-hud-strip { display: none; }
+  .atm-tier-links { display: none; }
+  .atm-nav { grid-template-columns: 1fr auto; }
+  .ag-hero-row,
+  .ag-head { grid-template-columns: 1fr; }
+  .ag-actions { justify-content: flex-start; }
+  .ag-hazard-row { grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr) 80px; }
+  .ag-hz-desc { display: none; }
+}
+
+@media (max-width: 760px) {
+  .atm-act { padding-top: 84px; }
+  .ag-link-state { display: none; }
+  .ag-ribbon { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 4px; }
+  .ag-ribbon-cell:nth-child(3) { border-left: 0; padding-left: 0; }
+  .ag-hero .ag-body { font-size: 14px; }
+  .ag-pipeline { grid-template-columns: 1fr 1fr; row-gap: 26px; margin-top: 18px; }
+  .ag-step p { font-size: 12.5px; }
+  .ag-step-num { font-size: 44px; }
+  .ag-hazard-row { grid-template-columns: minmax(0, 1fr) 72px; }
+  .ag-hz-idx, .ag-hz-rule { display: none; }
+  .ag-scroll-cue { display: none; }
+  .ag-btn { height: 44px; padding: 0 18px; }
+}
+
+@media (max-height: 760px) and (min-width: 761px) {
+  .ag-hero-title { font-size: clamp(56px, 9vw, 130px); }
+  .ag-h2 { font-size: clamp(44px, 6vw, 92px); }
+  .ag-step p { font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-rise { opacity: 1; transform: none; transition: none; }
+  .ag-dot--online, .ag-scroll-cue span:last-child { animation: none; }
+}
+
+.ag-hero .ag-wrap {
+  justify-content: flex-end;
+  gap: clamp(16px, 2.8vh, 32px);
+}
+
+/* Pinned stage that every act is composited into */
+.atm-overlay-viewport {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.ag-hz-count small { text-transform: uppercase; }
+.ag-hz-count--tag {
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.ag-scroll-cue { flex-direction: column; gap: 8px; }
+
+@media (max-width: 760px) {
+  .atm-brand-deva { display: none; }
+  .atm-brand-word { font-size: 26px; }
+  .atm-nav .ag-btn { height: 38px; padding: 0 14px; font-size: 10.5px; }
+  .ag-hero-title { font-size: clamp(52px, 15vw, 90px); }
+}

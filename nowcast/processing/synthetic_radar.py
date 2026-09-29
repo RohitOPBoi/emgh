@@ -1,11 +1,11 @@
-"""Synthetic reflectivity + radial-velocity generator — stand-in for real radar (2c).
+"""Synthetic reflectivity + radial-velocity generator - stand-in for real radar (2c).
 
 No MOSDAC radar access yet, and PNG radar overlays (the other fallback in
 section 2c) aren't quantitative, so pySTEPS (4a) can't run on them. This
 generates a moving Gaussian storm cell on the demo grid so pySTEPS'
 optical-flow + extrapolation has *something* physically plausible to work
 on end to end. Swap for real CAPPI grids from `pyiwr`/Py-ART once MOSDAC
-radar access exists — output shape/units (dBZ on a lat/lon grid) match
+radar access exists - output shape/units (dBZ on a lat/lon grid) match
 what the real pipeline will produce.
 
 Cell position comes from `storm_track` so the same storm agrees across
@@ -27,7 +27,7 @@ def _grid_coords():
 
 
 def generate_sequence(n_frames=6, dt_minutes=10, peak_dbz=58, radius_km=8, t_offset_min=None, **track_kwargs):
-    """Return (frames, timestamps_min) — frames: list of (GRID_SIZE, GRID_SIZE) dBZ arrays.
+    """Return (frames, timestamps_min) - frames: list of (GRID_SIZE, GRID_SIZE) dBZ arrays.
 
     Storm cell advects per `storm_track`, one frame every `dt_minutes`, oldest
     first (as pySTEPS expects). `track_kwargs` override storm_track.DEFAULT_CELL.
@@ -69,7 +69,7 @@ def generate_velocity_frame(t_min=0, radius_km=8, max_velocity_ms=28, **track_kw
     Real downburst signature: a tight inbound/outbound velocity dipole
     straddling the storm core along its motion axis (divergent outflow).
     We fake this as two offset Gaussian lobes of opposite sign, offset along
-    the storm's bearing — a stand-in for what Py-ART would extract from a
+    the storm's bearing - a stand-in for what Py-ART would extract from a
     real volumetric scan. Units: m/s, positive = away from radar (outbound).
     """
     lon_grid, lat_grid = _grid_coords()

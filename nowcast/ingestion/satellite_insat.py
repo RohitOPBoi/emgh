@@ -1,24 +1,20 @@
 """INSAT-3D/3DR satellite puller (section 2b of project.md).
 
 Original plan: mdapi.py client against MOSDAC, datasetId 3DIMG_L1B_STD or
-3DIMG_L1C_ASIA_MER, parsed with h5py/satpy, reprojected with pyresample —
-not implemented, still needs MOSDAC approval (section 1).
+3DIMG_L1C_ASIA_MER, parsed with h5py/satpy, reprojected with pyresample - not implemented, still needs MOSDAC approval (section 1).
 
 USE_LIVE_SATELLITE=true pulls real thermal IR for the `tir1` channel from
 one of two live sources, tried in order:
-1. EUMETSAT MSG SEVIRI IR10.8 (nowcast/ingestion/eumetsat_satellite.py) —
-   geostationary, continuous 15min updates, actually centered on India.
+1. EUMETSAT MSG SEVIRI IR10.8 (nowcast/ingestion/eumetsat_satellite.py) - geostationary, continuous 15min updates, actually centered on India.
    Needs EUMETSAT_CONSUMER_KEY/SECRET. Written against eumdac's real API
-   but not yet exercised against live credentials — may need debugging.
-2. Copernicus Sentinel-3 SLSTR F1 (nowcast/ingestion/copernicus_satellite.py)
-   — verified live, but polar-orbiting (~1-2 passes/day), so "no recent
+   but not yet exercised against live credentials - may need debugging.
+2. Copernicus Sentinel-3 SLSTR F1 (nowcast/ingestion/copernicus_satellite.py) - verified live, but polar-orbiting (~1-2 passes/day), so "no recent
    scene" is a normal, expected fallback trigger, not a bug. Needs
    COPERNICUS_CLIENT_ID/SECRET.
-`wv`/`mwir` stay synthetic regardless of which live source succeeds —
-neither exposes equivalent channels. Default (false): generates synthetic
+`wv`/`mwir` stay synthetic regardless of which live source succeeds - neither exposes equivalent channels. Default (false): generates synthetic
 TIR-1 (10.8um), WV (6.7um),
 and MWIR fields correlated with the same storm cell as the synthetic radar
-(via storm_track), so a real convective signature is visible — cold cloud
+(via storm_track), so a real convective signature is visible - cold cloud
 top and moist WV signal collocated with the reflectivity core, not
 independent noise. Writes to data/satellite/<ts>.npz with keys: tir1, wv,
 mwir (each GRID_SIZE x GRID_SIZE), bbox, timestamp.
@@ -71,7 +67,7 @@ def _fetch_live():
         tir1 = fetch_tir1_grid(bbox, GRID_SIZE)
         print("[satellite_insat] tir1 from Copernicus Sentinel-3 SLSTR (real)")
 
-    # wv/mwir have no real equivalent in either source — reuse the synthetic
+    # wv/mwir have no real equivalent in either source - reuse the synthetic
     # mock for just those two channels rather than leaving them blank, so
     # the fusion grid still has all three channels populated.
     _, wv, mwir = _fetch_mock()
@@ -89,8 +85,7 @@ def _fetch_mock(t_min=0):
     dx_km = (lon_grid - c_lon) * km_per_deg_lon
     r_km = np.sqrt(dx_km**2 + dy_km**2)
 
-    # Cold cloud top footprint is broader than the reflectivity core —
-    # anvil/cirrus shield extends beyond the precip core in real convection.
+    # Cold cloud top footprint is broader than the reflectivity core - # anvil/cirrus shield extends beyond the precip core in real convection.
     cloud_sigma_km = 14
     cold_frac = np.exp(-(r_km**2) / (2 * cloud_sigma_km**2))
 

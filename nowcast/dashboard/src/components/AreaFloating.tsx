@@ -50,6 +50,7 @@ export function AreaFloating({
   areaVar,
   onAreaVarChange,
   onClose,
+  onRecenter,
 }: {
   bbox: Bbox;
   reading: AreaForecast | null;
@@ -61,11 +62,13 @@ export function AreaFloating({
   areaVar: AreaVarId;
   onAreaVarChange: (v: AreaVarId) => void;
   onClose: () => void;
+  onRecenter?: (bbox: Bbox) => void;
 }) {
   const leadLabel = leadMinutes === 0 ? "NOW" : `+${Math.floor(leadMinutes / 60)}h ${leadMinutes % 60 ? `${leadMinutes % 60}m` : ""}`;
   const [lonMin, latMin, lonMax, latMax] = bbox;
   const widthKm = Math.round((lonMax - lonMin) * 111 * Math.cos(((latMin + latMax) / 2) * (Math.PI / 180)));
   const heightKm = Math.round((latMax - latMin) * 111);
+  const approxAreaKm2 = Math.round(widthKm * heightKm);
 
   return (
     <div className="region-floating panel" role="dialog" aria-label="Area Bounding Box Inspection">
@@ -74,9 +77,22 @@ export function AreaFloating({
           <Box size={13} style={{ color: "var(--text-3)" }} />
           <h2>Sector Analysis</h2>
         </div>
-        <button className="drawer-close" onClick={onClose} aria-label="Close">
-          <X size={13} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {onRecenter && (
+            <button
+              className="drawer-close"
+              onClick={() => onRecenter(bbox)}
+              aria-label="Re-center map on sector"
+              title="Re-center map on sector"
+              style={{ fontSize: 10, padding: "2px 6px" }}
+            >
+              ZOOM
+            </button>
+          )}
+          <button className="drawer-close" onClick={onClose} aria-label="Close">
+            <X size={13} />
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-3)", padding: "var(--s-3)" }}>
@@ -84,9 +100,17 @@ export function AreaFloating({
           className="tile region-coords mono"
           style={{
             padding: "6px 10px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          {latMin.toFixed(2)}–{latMax.toFixed(2)}°N, {lonMin.toFixed(2)}–{lonMax.toFixed(2)}°E (~{widthKm}×{heightKm}KM)
+          <span>
+            {latMin.toFixed(2)}–{latMax.toFixed(2)}°N, {lonMin.toFixed(2)}–{lonMax.toFixed(2)}°E
+          </span>
+          <span style={{ color: "var(--ice)", fontWeight: 600 }}>
+            ~{approxAreaKm2.toLocaleString()} km²
+          </span>
         </div>
 
         <div>

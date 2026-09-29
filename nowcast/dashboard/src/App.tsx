@@ -490,6 +490,15 @@ function Dashboard() {
                     areaVar={areaVar}
                     onAreaVarChange={setAreaVar}
                     onClose={() => setArea(null)}
+                    onRecenter={(b) => {
+                      map?.fitBounds(
+                        [
+                          [b[0], b[1]],
+                          [b[2], b[3]],
+                        ],
+                        { padding: 80, duration: 800 }
+                      );
+                    }}
                   />
                 )}
               </div>

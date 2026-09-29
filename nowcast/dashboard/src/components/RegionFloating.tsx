@@ -34,9 +34,24 @@ export function RegionFloating({
           className="tile region-coords mono"
           style={{
             padding: "6px 10px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
           }}
         >
-          {region.lat.toFixed(3)}°N, {region.lon.toFixed(3)}°E
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>{region.lat.toFixed(3)}°N, {region.lon.toFixed(3)}°E</span>
+            {reading?.district && (
+              <span className="chip" style={{ fontSize: 9, padding: "1px 6px", background: "var(--accent-glow)", color: "var(--accent)" }}>
+                {reading.district}
+              </span>
+            )}
+          </div>
+          {reading?.state && (
+            <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              {reading.state}{reading.distance_to_district_km !== undefined ? ` · ${reading.distance_to_district_km}km from HQ` : ""}
+            </span>
+          )}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>

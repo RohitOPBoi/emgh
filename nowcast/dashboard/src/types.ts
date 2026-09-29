@@ -108,6 +108,9 @@ export interface RegionForecast {
   pressure_hpa: number;
   lead_minutes: number;
   cloudburst_rainrate_mm_hr: number | null;
+  district?: string;
+  state?: string;
+  distance_to_district_km?: number;
 }
 
 export interface AreaStat {

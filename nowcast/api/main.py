@@ -905,7 +905,17 @@ def region_forecast(lat: float, lon: float, lead_time: int = Query(0, ge=0, le=3
     except Exception as exc:
         print(f"[api] forecast unavailable in /region-forecast: {exc}")
 
-    return {**sample, "lead_minutes": lead_time, "cloudburst_rainrate_mm_hr": cloudburst_rainrate}
+    from nowcast.configs.districts_india import nearest_district
+    location_meta = nearest_district(lat, lon)
+
+    return {
+        **sample,
+        "lead_minutes": lead_time,
+        "cloudburst_rainrate_mm_hr": cloudburst_rainrate,
+        "district": location_meta.get("district"),
+        "state": location_meta.get("state"),
+        "distance_to_district_km": location_meta.get("distance_km"),
+    }
 
 
 @app.get("/area-forecast")

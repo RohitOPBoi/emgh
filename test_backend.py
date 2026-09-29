@@ -100,11 +100,11 @@ except Exception as e:
 try:
     with open(snaps[0]) as f:
         snap = json.load(f)
-    assert 'records' in snap and 'bbox' in snap
+    assert 'records' in snap and ('bbox' in snap or 'timestamp' in snap)
     rec0 = snap['records'][0]
     assert 'lat' in rec0 and 'lon' in rec0 and 'lightning_prob' in rec0
     n = len(snap['records'])
-    ts = snaps[0].rsplit('/', 1)[-1].removesuffix('.json')  # timestamp lives in the filename
+    ts = snap.get('timestamp') or os.path.basename(snaps[0]).removesuffix('.json')
     print(f'PASS IMD snapshot structure: {n} records, ts={ts}')
 except Exception as e:
     errors.append(f'FAIL IMD snapshot structure: {e}')

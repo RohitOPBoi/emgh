@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import type { Feature } from "geojson";
-import { useMeghMap } from "../MapProvider";
+import { useAgrimMap } from "../MapProvider";
 import type { WindPoint } from "../../types";
 
 function createArrowIcon(size: number): ImageData {
-  // Locally-drawn SDF arrow instead of a text glyph — avoids depending on an
+  // Locally-drawn SDF arrow instead of a text glyph - avoids depending on an
   // external glyphs font server (fonts.openmaptiles.org has returned
   // malformed PBFs for some font-stack/range combos in testing, logged by
   // MapLibre as "Unimplemented type: 4", silently dropping the layer).
@@ -25,7 +25,7 @@ function createArrowIcon(size: number): ImageData {
 }
 
 export function WindArrows({ points, visible }: { points: WindPoint[] | null; visible: boolean }) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
 
   useEffect(() => {
     if (!map || !ready || !points || map.getSource("wind-arrows")) return;

@@ -3,7 +3,7 @@ labeling of hazard points (map labels + Twilio alerts need "which district"
 not just raw lat/lon).
 
 This is NOT an exhaustive census district-boundary shapefile (India has
-~750 districts; no polygon geometry is used here) — it's ~130 major
+~750 districts; no polygon geometry is used here) - it's ~130 major
 district headquarters (state capitals, largest cities per state, at least
 one entry per state/UT) with their real lat/lon, used as centroids for a
 simple nearest-neighbor assignment: a hazard point gets labeled with
@@ -12,12 +12,12 @@ whichever centroid is closest. This is the same pragmatic
 (REGIONS' fixed-size demo boxes, hazard_india's nearest-lightning-strike
 proximity check) rather than pulling in a multi-MB boundary dataset for a
 hackathon timescale. Good enough to say "this hail cell is nearest to
-Nagpur, Maharashtra" — not good enough to be a legal administrative
+Nagpur, Maharashtra" - not good enough to be a legal administrative
 boundary lookup.
 """
 import numpy as np
 
-# (district, state, lat, lon) — district headquarters coordinates.
+# (district, state, lat, lon) - district headquarters coordinates.
 DISTRICTS = [
     ("Mumbai City", "Maharashtra", 18.94, 72.84),
     ("Mumbai Suburban", "Maharashtra", 19.08, 72.88),
@@ -173,7 +173,7 @@ def nearest_district(lat, lon):
 
 
 def nearest_districts_vectorized(lats: np.ndarray, lons: np.ndarray):
-    """Same as nearest_district but for an array of points at once — used
+    """Same as nearest_district but for an array of points at once - used
     by hazard_india.detect(), which can produce thousands of hail cells
     across the all-India grid; a Python-level loop per cell over ~130
     centroids would be the same kind of avoidable overhead the lightning

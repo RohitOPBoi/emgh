@@ -1,7 +1,7 @@
-"""DGMR (DeepMind's Skillful Nowcasting GAN) — section 4b deep-model path.
+"""DGMR (DeepMind's Skillful Nowcasting GAN) - section 4b deep-model path.
 
 Real pretrained weights, run zero-shot (openclimatefix/dgmr on HuggingFace
-Hub, via the `dgmr` PyPI package — this is Option A from project.md §4b,
+Hub, via the `dgmr` PyPI package - this is Option A from project.md §4b,
 chosen over fine-tuning SmaAt-UNet because it needs no training run and
 still gives the plan's "baseline vs. AI model" comparison toggle).
 
@@ -9,14 +9,14 @@ Known limitations, stated up front rather than discovered by a judge:
 - Trained on UK Met Office radar composites at 1km/5min. We feed it our
   synthetic 64x64 grid (not UK radar, not real precip at all), resized to
   the model's fixed 256x256 input and rescaled with a simple linear
-  normalization — not the original training pipeline's calibrated
+  normalization - not the original training pipeline's calibrated
   transform. Treat DGMR's output here as *structurally* illustrative
   (it does real motion-conditioned generation on whatever it's given),
   not quantitatively meaningful. This is the domain-shift caveat the plan
   explicitly asks to disclose.
 - Fixed architecture: 4 context frames in, 18 steps out. We assume the
   paper's 5-min cadence (giving a 90-min horizon), which is shorter than
-  pySTEPS' 6h — the dashboard's model toggle only offers DGMR up to +90min
+  pySTEPS' 6h - the dashboard's model toggle only offers DGMR up to +90min
   for this reason.
 - CPU inference only in this environment (~3s/forecast on a modest CPU);
   fine for an on-demand demo, not for tight polling.
@@ -34,8 +34,7 @@ from nowcast.models.pysteps_baseline import _dbz_to_rainrate
 # once cubed through R = (Z/200)^(1/1.6). That's not a real forecast value,
 # it's noise amplified by a formula that assumes calibrated input. So DGMR's
 # output here stays a unitless 0-1 "relative intensity" and is never fed into
-# the mm/hr-based cloudburst rule (see hazard.py / pysteps_baseline.py) —
-# it's a visual comparison layer only, not a second source of truth.
+# the mm/hr-based cloudburst rule (see hazard.py / pysteps_baseline.py) - # it's a visual comparison layer only, not a second source of truth.
 
 DGMR_INPUT_SIZE = 256
 CONTEXT_FRAMES = 4
@@ -80,7 +79,7 @@ def run_forecast(history_frames=CONTEXT_FRAMES, dt_minutes=10):
     `dt_minutes` is the *input* history spacing (matches our synthetic
     radar cadence, 10 min); DGMR's own output cadence is fixed at
     DT_MINUTES=5 by the pretrained architecture, independent of the input
-    spacing — another facet of the domain-shift caveat above.
+    spacing - another facet of the domain-shift caveat above.
     """
     model = _get_model()
 
@@ -89,7 +88,7 @@ def run_forecast(history_frames=CONTEXT_FRAMES, dt_minutes=10):
     rainrate_stack = _dbz_to_rainrate(dbz_stack)
 
     # Simple linear normalization into DGMR's expected roughly-[0,1] input
-    # range (max ~1mm/5min bracket in the original pipeline) — not the
+    # range (max ~1mm/5min bracket in the original pipeline) - not the
     # calibrated openclimatefix transform, see module docstring.
     norm = np.clip(rainrate_stack / 50.0, 0, 1)
     resized = np.stack([_resize(f, DGMR_INPUT_SIZE) for f in norm], axis=0)  # (4, 256, 256)
@@ -109,7 +108,7 @@ def run_forecast(history_frames=CONTEXT_FRAMES, dt_minutes=10):
         "bbox": get_region_bbox(),
         "grid_size": GRID_SIZE,
         "source": "dgmr",
-        "note": "relative intensity 0-1, not calibrated mm/hr — see module docstring",
+        "note": "relative intensity 0-1, not calibrated mm/hr - see module docstring",
     }
 
 

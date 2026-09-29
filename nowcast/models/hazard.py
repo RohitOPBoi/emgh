@@ -5,7 +5,7 @@ truth exists at hackathon timescale, and thresholds are explainable to
 judges.
 
 `classify_station` covers hail/lightning from the IMD nowcast feed alone
-(2a) — used for the per-station panel. `hail_cells` and `downburst_cells`
+(2a) - used for the per-station panel. `hail_cells` and `downburst_cells`
 below are grid-based, operating on a fused multi-channel raster
 (`nowcast.processing.fusion`), and implement the actual thresholds from the
 plan: hail needs reflectivity + cold cloud top + elevated lightning all
@@ -39,7 +39,7 @@ def classify_station(record: dict) -> dict:
     elif lightning_prob >= 0.30:
         hazards.append({"type": "lightning", "severity": "moderate"})
 
-    # downburst: requires radar radial-velocity couplet — not available from
+    # downburst: requires radar radial-velocity couplet - not available from
     # the IMD point feed, only from the gridded radar layer (see
     # `downburst_cells` below). cloudburst: requires pySTEPS rain-rate
     # extrapolation (section 4a, see `pysteps_baseline.cloudburst_cells`).

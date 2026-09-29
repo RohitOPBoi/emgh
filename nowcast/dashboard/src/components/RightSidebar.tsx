@@ -31,7 +31,7 @@ function formatEta(minutes: number): string {
 
 function bucketSeverity(forecast: ForecastSummary | null, fromMin: number, toMin: number): { label: string; color: string; bg: string } {
   if (!forecast?.timestamps_min || !forecast.max_rainrate_mm_hr) {
-    return { label: "—", color: "var(--text-3)", bg: "transparent" };
+    return { label: "-", color: "var(--text-3)", bg: "transparent" };
   }
   let max = 0;
   forecast.timestamps_min.forEach((t, i) => {
@@ -50,6 +50,7 @@ export function RightSidebar({
   showLegend = true,
   onToggleLegend,
   activeVarMeta,
+  slotRef,
 }: {
   stormCells: StormCell[] | null;
   forecast: ForecastSummary | null;
@@ -58,6 +59,8 @@ export function RightSidebar({
   showLegend?: boolean;
   onToggleLegend?: () => void;
   activeVarMeta?: WeatherLayer | null;
+  /** Mount point for the rain-simulation card at the top of the dock. */
+  slotRef?: (el: HTMLDivElement | null) => void;
 }) {
   const cells = stormCells ?? [];
   const primaryCell = cells.length ? [...cells].sort((a, b) => a.eta_minutes - b.eta_minutes)[0] : null;
@@ -112,7 +115,7 @@ export function RightSidebar({
         </div>
       </div>
 
-      {/* Section 1: Radar Reflectivity (dBZ) — 4 Discrete Steps */}
+      {/* Section 1: Radar Reflectivity (dBZ) - 4 Discrete Steps */}
       <div className="panel-section" style={{ gap: 6 }}>
         <div className="section-title">
           <span>Radar Reflectivity</span>
@@ -202,6 +205,7 @@ export function RightSidebar({
   if (collapsed) {
     return (
       <div className="right-dock-stack" style={{ alignItems: "flex-end" }}>
+        <div ref={slotRef} className="rain-slot" />
         <div
           className="dock-badge-right"
           style={{ position: "relative", top: "auto", right: "auto" }}
@@ -220,6 +224,7 @@ export function RightSidebar({
 
   return (
     <div className="right-dock-stack">
+      <div ref={slotRef} className="rain-slot" />
       {/* ── Threat Matrix Container ────────────────────────────────────────── */}
       <aside
         className="sidebar right floating-dock panel"

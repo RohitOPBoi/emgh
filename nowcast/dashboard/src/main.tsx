@@ -1,8 +1,12 @@
-import { StrictMode, useState, useEffect } from 'react'
+import { StrictMode, Suspense, lazy, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
+import './fonts.css'
 import './index.css'
-import App from './App.tsx'
-import HomePage from './HomePage.tsx'
+// Route-level code splitting: the landing page and the map console are
+// separate bundles, so visiting one never downloads the other (MapLibre is
+// the bulk of the console).
+const App = lazy(() => import('./App.tsx'))
+const HomePage = lazy(() => import('./HomePage.tsx'))
 
 function Root() {
   const [view, setView] = useState<'home' | 'dashboard'>(() => {
@@ -36,10 +40,11 @@ function Root() {
     setView('dashboard');
   }
 
-  if (view === 'dashboard') {
-    return <App />;
-  }
-  return <HomePage onNavigateToDashboard={goToDashboard} />;
+  return (
+    <Suspense fallback={<div className="boot-splash" role="status" aria-label="Loading Agrim" />}>
+      {view === 'dashboard' ? <App /> : <HomePage onNavigateToDashboard={goToDashboard} />}
+    </Suspense>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(

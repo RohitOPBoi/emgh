@@ -115,7 +115,7 @@ export function LayersDrawer({
               ? "LK optical-flow semi-Lagrangian extrapolation. Calibrated mm/hr, 0–6h horizon."
               : model === "dgmr"
                 ? "DeepMind Skillful Nowcasting GAN zero-shot. Relative intensity, 0–90min horizon."
-                : "SmaAt-UNet: Spatial-Channel Attention UNet. Trained on high-res SEVIR radar."}
+                : "SmaAt-UNet: attention U-Net architecture is implemented; fine-tuned weights are not loaded yet, so it reports unavailable."}
           </div>
           <label className="check-row" style={{ marginTop: 8 }}>
             <input
@@ -183,18 +183,26 @@ export function LayersDrawer({
                   marginTop: 5,
                 }}
               >
-                <span>{activeVarMeta ? `${activeVarMeta.vmin}${activeVarMeta.unit}` : "—"}</span>
-                <span>{activeVarMeta ? `${activeVarMeta.vmax}${activeVarMeta.unit}` : "—"}</span>
+                <span>{activeVarMeta ? `${activeVarMeta.vmin}${activeVarMeta.unit}` : "-"}</span>
+                <span>{activeVarMeta ? `${activeVarMeta.vmax}${activeVarMeta.unit}` : "-"}</span>
               </div>
             </div>
           )}
 
-          {weatherSource === "ecmwf-opendata" && activeVar !== "rainfall" && (
+          {weatherSource === "ecmwf-opendata" && activeVar !== "rainfall" && activeVar !== "composite_risk" && (
             <div className="note-text">
               <span className="real-badge">REAL</span>
               ECMWF Open Data HRES 0.25° grid (CC-BY-4.0).
             </div>
           )}
+          {weatherSource !== null &&
+            weatherSource !== "ecmwf-opendata" &&
+            ["temperature", "humidity", "wind_speed", "pressure"].includes(activeVar) && (
+              <div className="note-text">
+                <span className="synthetic-badge">SYNTHETIC</span>
+                Ambient field is a synthetic climatology. Set USE_LIVE_ECMWF=true for real ECMWF Open Data.
+              </div>
+            )}
         </div>
 
         {/* ── Base Map Selection ────────────────────────────────────────── */}
@@ -208,7 +216,7 @@ export function LayersDrawer({
             onChange={(e) => onBaseMapChange(e.target.value)}
             aria-label="Basemap"
           >
-            <option value="none">Esri Dark Canvas (Default)</option>
+            <option value="none">Agrim India base (default)</option>
             {BASE_LAYERS.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.label}

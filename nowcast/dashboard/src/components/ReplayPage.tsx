@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pause, Play, X, History } from "lucide-react";
 import { api } from "../api";
 import { HAZARD_COLOR } from "../lib/colors";
+import { useSystemStatus } from "../hooks/useSystemStatus";
 import type { HistoryHazardsResponse } from "../types";
 
 function parseTimestamp(ts: string): Date {
@@ -16,17 +17,33 @@ export function ReplayPage({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const { status } = useSystemStatus();
+  const srcs = status ? Object.values(status.sources) : [];
+  const liveNames = srcs.filter((s) => s.mode === "live").map((s) => s.label.toLowerCase());
+  const synthNames = srcs.filter((s) => s.mode !== "live").map((s) => s.label.toLowerCase());
+  const anyLive = liveNames.length > 0;
+
   useEffect(() => {
-    api.historyTimestamps().then((res) => {
-      setTimestamps(res.timestamps);
-      setIndex(Math.max(0, res.timestamps.length - 1));
-      setLoading(false);
-    });
+    api
+      .historyTimestamps()
+      .then((res) => {
+        setTimestamps(res.timestamps);
+        setIndex(Math.max(0, res.timestamps.length - 1));
+      })
+      .catch(() => setTimestamps([]))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
     if (!timestamps.length) return;
-    api.historyHazards(timestamps[index]).then(setSnapshot);
+    let cancelled = false;
+    api
+      .historyHazards(timestamps[index])
+      .then((s) => !cancelled && setSnapshot(s))
+      .catch(() => !cancelled && setSnapshot(null));
+    return () => {
+      cancelled = true;
+    };
   }, [timestamps, index]);
 
   useEffect(() => {
@@ -45,9 +62,15 @@ export function ReplayPage({ onClose }: { onClose: () => void }) {
   return (
     <div className="hazards-page" role="dialog" aria-label="Historical Replay">
       <div className="hazards-page-head">
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <History size={18} style={{ color: "var(--text-3)" }} />
-          <h1>Historical Radar & Severe Hazard Replay</h1>
+        <div className="page-title">
+          <span className="page-eyebrow mono">
+            <History size={12} /> Replay
+          </span>
+          <h1>Replay the last storms</h1>
+          <p className="page-sub">
+            Step through every persisted ingest cycle to audit what the system saw, and when - the basis for back-testing
+            the hazard rules.
+          </p>
         </div>
         <button className="icon-btn" onClick={onClose} aria-label="Close page" style={{ width: 32, height: 32 }}>
           <X size={16} />
@@ -66,8 +89,14 @@ export function ReplayPage({ onClose }: { onClose: () => void }) {
         ) : (
           <>
             <div className="note-text" style={{ marginBottom: 18, borderTop: "none", paddingTop: 0 }}>
-              <span className="real-badge">REAL DATA</span>
-              Reconstructed from persisted IMD Doppler, Blitzortung, and satellite sensor frames.
+              {anyLive ? (
+                <span className="real-badge">MIXED SOURCES</span>
+              ) : (
+                <span className="synthetic-badge">SYNTHETIC ARCHIVE</span>
+              )}
+              {anyLive
+                ? `Live: ${liveNames.join(", ")}${synthNames.length ? ` · Synthetic: ${synthNames.join(", ")}` : ""}. Downburst velocity is always synthetic (no public Doppler feed).`
+                : "No live source is enabled on this server, so these snapshots come from the synthetic fallback - enable the USE_LIVE_* flags for real data."}
             </div>
 
             {/* ── Player HUD ─────────────────────────────────── */}
@@ -149,7 +178,7 @@ export function ReplayPage({ onClose }: { onClose: () => void }) {
                           ? `${h.reflectivity_dbz} dBZ`
                           : h.velocity_delta_ms !== undefined
                           ? `${h.velocity_delta_ms} m/s`
-                          : "—";
+                          : "-";
                       const sevClass = h.severity === "high" ? "chip--high" : h.severity === "moderate" ? "chip--mod" : "chip--low";
                       return (
                         <tr key={`${fi}-${hi}`}>

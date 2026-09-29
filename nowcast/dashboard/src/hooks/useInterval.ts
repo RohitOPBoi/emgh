@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 /** Runs `callback` immediately and then every `delayMs`. If `callback`'s own
  * identity changes (e.g. it's wrapped in `useCallback(..., [someParam])` and
- * `someParam` changed — see useHazards(leadMinutes)), that also triggers an
+ * `someParam` changed - see useHazards(leadMinutes)), that also triggers an
  * immediate re-run instead of waiting for the next scheduled tick: without
  * this, changing leadMinutes updated the closure `useInterval` would
  * eventually call, but not until up to `delayMs` later, which made the

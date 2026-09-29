@@ -4,14 +4,14 @@ Free, unauthenticated, no API key: `https://api.rainviewer.com/public/weather-ma
 lists recent radar frames as slippy-map tile paths; India's coverage there is itself
 built from IMD's public radar network, republished by RainViewer rather than pulled
 straight from MOSDAC. We fetch the "Black and White" color scheme (scheme id 0), which
-RainViewer defines as a direct linear encoding of dBZ into greyscale — not a rendered
-color ramp — so this is genuine quantitative reflectivity, not a PNG-inversion guess:
+RainViewer defines as a direct linear encoding of dBZ into greyscale - not a rendered
+color ramp - so this is genuine quantitative reflectivity, not a PNG-inversion guess:
   grey 1..127   -> dBZ = grey - 32   (rain)
   grey 129..255 -> dBZ = grey - 160  (snow)
   alpha 0       -> no data
 
 RainViewer has no Doppler radial-velocity product (that needs a raw volumetric scan,
-which no public aggregator exposes) — `velocity_ms` therefore stays synthetic even in
+which no public aggregator exposes) - `velocity_ms` therefore stays synthetic even in
 live mode, so the downburst hazard rule (needs a real velocity couplet) never becomes
 "real" this way. Document this clearly wherever radar_puller output feeds into hazard
 rules.
@@ -30,7 +30,7 @@ from nowcast.configs.settings import get_region_bbox
 
 TILE_SIZE = 256
 ZOOM = 10  # ~0.35 deg/tile at the equator, well under REGION_BBOX's ~0.5 deg extent
-INDIA_ZOOM = 6  # ~5.6 deg/tile — keeps an all-India fetch to ~30-40 tiles instead of thousands
+INDIA_ZOOM = 6  # ~5.6 deg/tile - keeps an all-India fetch to ~30-40 tiles instead of thousands
 
 
 def _latlon_to_tile(lat, lon, zoom):
@@ -78,7 +78,7 @@ def _latest_frame_path():
 
 
 def _fetch_frame_mosaic(host, frame_path, bbox, grid_size, zoom):
-    """One RainViewer frame (`frame_path`, a specific past timestamp — not
+    """One RainViewer frame (`frame_path`, a specific past timestamp - not
     necessarily the latest), fetched as tiles, mosaicked, and regridded to
     (grid_size, grid_size) over `bbox`. Factored out of fetch_reflectivity
     so fetch_reflectivity_sequence can call it once per historical frame
@@ -124,7 +124,7 @@ def _fetch_frame_mosaic(host, frame_path, bbox, grid_size, zoom):
     # is just the bottom of the top row, not the mosaic's south edge); the SE
     # tile gives the east edge AND the south edge. Mixing these up (taking
     # lat_bottom from the NW tile) silently produced a degenerate or reversed
-    # latitude array whenever a region's bbox spanned >1 tile row — Kolkata's
+    # latitude array whenever a region's bbox spanned >1 tile row - Kolkata's
     # bbox does, Pune's happened not to, which is why this only surfaced now.
     mosaic_lon_min, _, _, mosaic_lat_max = _tile_bounds(tx0, ty0, zoom)
     _, mosaic_lat_min, mosaic_lon_max, _ = _tile_bounds(max(tx_range), max(ty_range), zoom)
@@ -149,8 +149,7 @@ def _fetch_frame_mosaic(host, frame_path, bbox, grid_size, zoom):
 def fetch_reflectivity(grid_size=64, bbox=None, zoom=None):
     """Real reflectivity grid over `bbox` (defaults to the active region's
     storm-scale bbox), regridded to (grid_size, grid_size). Pass a coarser
-    `zoom` for a large bbox (see INDIA_ZOOM / fetch_india_reflectivity) —
-    tile count grows with (bbox extent / tile extent)^2, and ZOOM=10's
+    `zoom` for a large bbox (see INDIA_ZOOM / fetch_india_reflectivity) - tile count grows with (bbox extent / tile extent)^2, and ZOOM=10's
     ~0.35deg tiles would mean thousands of requests across all of India."""
     if bbox is None:
         bbox = get_region_bbox()
@@ -162,15 +161,14 @@ def fetch_reflectivity(grid_size=64, bbox=None, zoom=None):
 
 def fetch_india_reflectivity(grid_size):
     """Real reflectivity across all of India (settings.INDIA_BBOX), at a
-    coarser zoom than the per-region fetch — used by hazard_india.py."""
+    coarser zoom than the per-region fetch - used by hazard_india.py."""
     from nowcast.configs.settings import INDIA_BBOX
 
     return fetch_reflectivity(grid_size=grid_size, bbox=INDIA_BBOX, zoom=INDIA_ZOOM)
 
 
 def fetch_reflectivity_sequence(n_frames=6, grid_size=64, bbox=None, zoom=None):
-    """Real reflectivity TIME SERIES from RainViewer's own history buffer —
-    the input pySTEPS actually needs (a single "now" frame has no motion to
+    """Real reflectivity TIME SERIES from RainViewer's own history buffer - the input pySTEPS actually needs (a single "now" frame has no motion to
     estimate). `weather-maps.json`'s `radar.past` list already holds the
     last ~2h of frames at ~10min cadence; this fetches the most recent
     `n_frames` of them (oldest first) and regrids each the same way
@@ -190,7 +188,7 @@ def fetch_reflectivity_sequence(n_frames=6, grid_size=64, bbox=None, zoom=None):
     host, past_frames = _weather_maps()
     if len(past_frames) < 2:
         raise RuntimeError(
-            f"RainViewer only has {len(past_frames)} past frame(s) right now — need >=2 for a motion estimate"
+            f"RainViewer only has {len(past_frames)} past frame(s) right now - need >=2 for a motion estimate"
         )
     chosen = past_frames[-n_frames:] if len(past_frames) >= n_frames else past_frames
 
@@ -202,8 +200,7 @@ def fetch_reflectivity_sequence(n_frames=6, grid_size=64, bbox=None, zoom=None):
 
 def fetch_india_reflectivity_sequence(n_frames=6, grid_size=150):
     """All-India equivalent of fetch_reflectivity_sequence, for a real
-    all-India pySTEPS cloudburst extrapolation (was previously impossible —
-    see hazard_india.py's docstring — because only a single "now" mosaic
+    all-India pySTEPS cloudburst extrapolation (was previously impossible - see hazard_india.py's docstring - because only a single "now" mosaic
     was ever fetched; this fetches `n_frames` all-India mosaics instead).
     Several times the cost of a single all-India fetch (~15s each), so
     callers should cache aggressively."""

@@ -3,13 +3,13 @@
 Original plan: MOSDAC volumetric DWR datasets (TERLS/SHAR) parsed with
 `pyiwr` -> Py-ART -> CAPPI grid. MOSDAC access is still under review, so
 `USE_LIVE_RADAR=true` instead pulls real quantitative reflectivity from
-RainViewer (`nowcast/ingestion/rainviewer_radar.py`) — free, unauthenticated,
+RainViewer (`nowcast/ingestion/rainviewer_radar.py`) - free, unauthenticated,
 and its India coverage is itself built from IMD's public radar network, just
 republished by a third party instead of pulled from MOSDAC directly. See
 that module's docstring for the greyscale-to-dBZ decode.
 
-Radial (Doppler) velocity has no public aggregator equivalent — it needs a
-raw volumetric scan, which nothing but MOSDAC/IMD exposes — so `velocity_ms`
+Radial (Doppler) velocity has no public aggregator equivalent - it needs a
+raw volumetric scan, which nothing but MOSDAC/IMD exposes - so `velocity_ms`
 stays synthetic even with `USE_LIVE_RADAR=true`. This means the downburst
 hazard rule (needs a real velocity couplet) never becomes "real" this way,
 only hail/cloudburst (reflectivity-based) do. Falls back to fully synthetic

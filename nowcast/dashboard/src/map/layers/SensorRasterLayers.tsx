@@ -1,4 +1,4 @@
-import { useMeghMap } from "../MapProvider";
+import { useAgrimMap } from "../MapProvider";
 import { useRasterLayer } from "../useRasterLayer";
 import type { RawLayer } from "../../types";
 
@@ -11,7 +11,7 @@ export function SensorRasterLayers({
   satelliteVisible: boolean;
   radarVisible: boolean;
 }) {
-  const { map } = useMeghMap();
+  const { map } = useAgrimMap();
   const byId = Object.fromEntries((layers ?? []).map((l) => [l.id, l]));
 
   useRasterLayer(map, "layer-satellite_tir1", byId.satellite_tir1?.image, byId.satellite_tir1?.bbox, {

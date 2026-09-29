@@ -1,15 +1,15 @@
-"""Ambient weather fields — temperature, humidity, wind.
+"""Ambient weather fields - temperature, humidity, wind.
 
 When `USE_LIVE_ECMWF=true` (see settings.py), this is REAL data: ECMWF
 Open Data HRES forecast (free, no API key), via
-`nowcast/ingestion/ecmwf_weather.py`. Otherwise — and as an automatic
+`nowcast/ingestion/ecmwf_weather.py`. Otherwise - and as an automatic
 fallback if the live fetch fails for any reason (network, decode error,
-package missing) — it's synthetic: smooth latitude-driven climatology plus
+package missing) - it's synthetic: smooth latitude-driven climatology plus
 a storm-proximity perturbation (cooler, more humid, windier near the fake
 storm core, like a real gust front/cold pool) so it still reads as
 physically coherent with the rest of the demo even when faked. Not part of
 project.md's original data sources (IMD/MOSDAC nowcast feeds don't give
-gridded temperature/humidity/wind directly at this resolution) — added on
+gridded temperature/humidity/wind directly at this resolution) - added on
 top as a "situational awareness" layer so the map shows colored data
 across the whole visible region, not just the narrow storm bbox used for
 radar/satellite/hazards.
@@ -18,7 +18,7 @@ Two access patterns:
 - `generate_grid(t_min)`: full raster over settings.get_wide_bbox() (follows
   the active region), for the colored map overlay.
 - `sample_point(lat, lon, t_min)`: single-point value, for the per-region
-  "future trend" panel — cheap, no need to build the whole grid per click
+  "future trend" panel - cheap, no need to build the whole grid per click
   (in live mode, this samples the same cached grid `generate_grid` would
   have built, not a separate real-time query per point).
 """
@@ -30,7 +30,7 @@ from nowcast.configs.settings import get_wide_bbox, WIDE_GRID_SIZE, USE_LIVE_ECM
 from nowcast.processing.storm_track import center_at
 
 # Baseline climatology for the demo region/season (rough Maharashtra
-# pre-monsoon/monsoon values) — purely illustrative, not sourced from IMD.
+# pre-monsoon/monsoon values) - purely illustrative, not sourced from IMD.
 _TEMP_BASE_C = 29.0
 _TEMP_LAT_GRADIENT = -0.35     # slightly cooler further north/inland per degree lat
 _TEMP_DIURNAL_AMPLITUDE_C = 3.5
@@ -161,7 +161,7 @@ def _stat(arr):
 
 def area_stats(bbox, t_min=0):
     """Min/mean/max temperature/humidity/wind/pressure over a user-drawn
-    area (drag-select), not just a single point — backs the area-inspect
+    area (drag-select), not just a single point - backs the area-inspect
     panel. Masks generate_grid()'s cells to whatever falls inside `bbox`;
     if the drawn area doesn't overlap WIDE_BBOX at all, falls back to a
     single center-point sample so the panel still shows something instead
@@ -189,7 +189,7 @@ def area_stats(bbox, t_min=0):
 
 def wind_vector_points(stride=4, t_min=0):
     """Sparse sample of wind vectors for arrow-symbol rendering (dense grids
-    of arrows are unreadable — this thins WIDE_GRID_SIZE down by `stride`)."""
+    of arrows are unreadable - this thins WIDE_GRID_SIZE down by `stride`)."""
     lon_min, lat_min, lon_max, lat_max = get_wide_bbox()
     lons = np.linspace(lon_min, lon_max, WIDE_GRID_SIZE)[::stride]
     lats = np.linspace(lat_min, lat_max, WIDE_GRID_SIZE)[::stride]

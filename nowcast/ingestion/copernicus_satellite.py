@@ -1,11 +1,11 @@
 """Real satellite thermal IR via Copernicus Data Space Ecosystem (CDSE).
 
 Fills the one remaining fully-synthetic gap (satellite IR/WV/MWIR) using
-Sentinel-3 SLSTR's F1 band — real brightness temperature, ~1km resolution,
+Sentinel-3 SLSTR's F1 band - real brightness temperature, ~1km resolution,
 via Sentinel Hub's Process API (part of CDSE, https://dataspace.copernicus.eu).
 
 Needs a free CDSE account + OAuth2 client credentials (COPERNICUS_CLIENT_ID /
-COPERNICUS_CLIENT_SECRET in .env) — register at dataspace.copernicus.eu, then
+COPERNICUS_CLIENT_SECRET in .env) - register at dataspace.copernicus.eu, then
 create an OAuth client under your account settings. Verified live: real
 brightness temperatures (246-323K, physically plausible) confirmed across
 Pune, Delhi, Chennai, and Guwahati. If the request/response contract drifts
@@ -16,13 +16,13 @@ other live source in this project.
 Two real limitations, disclosed rather than hidden:
 - Sentinel-3 is polar-orbiting, not geostationary: it passes over a given
   point only ~1-2x/day, not continuously. A request for "now" over a small
-  city-sized bbox will often find no recent-enough scene and raise — that's
+  city-sized bbox will often find no recent-enough scene and raise - that's
   expected, not a bug, and the caller falls back to synthetic for that cycle.
 - F1 is a nadir-view thermal/fire-detection channel (typical range 250-320K),
-  not literally INSAT's 10.8um TIR1 channel — used here as the closest real
+  not literally INSAT's 10.8um TIR1 channel - used here as the closest real
   analog for a cold-cloud-top brightness-temperature signal. SLSTR has no
   water-vapor or mid-wave-IR channel, so `wv`/`mwir` stay synthetic even when
-  this succeeds — only `tir1` goes real.
+  this succeeds - only `tir1` goes real.
 """
 import io
 import os
@@ -38,7 +38,7 @@ from nowcast.configs.settings import COPERNICUS_CLIENT_ID, COPERNICUS_CLIENT_SEC
 TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
 PROCESS_URL = "https://sh.dataspace.copernicus.eu/api/v1/process"
 
-# Sentinel-3 revisit is ~1-2x/day — a narrow "now" window would almost never
+# Sentinel-3 revisit is ~1-2x/day - a narrow "now" window would almost never
 # find a scene over a small demo bbox, so this looks back far enough to
 # reliably catch the most recent pass while still being "recent" in a
 # meteorological sense (nowcasting itself only cares about the last few hours).
@@ -86,8 +86,7 @@ def _get_token():
 def fetch_tir1_grid(bbox, grid_size):
     """Real Sentinel-3 SLSTR F1 brightness temperature (Kelvin) over `bbox`,
     regridded to (grid_size, grid_size). Raises if no scene is available in
-    the lookback window, the request fails, or credentials are missing —
-    callers catch this and fall back to synthetic, same pattern as every
+    the lookback window, the request fails, or credentials are missing - callers catch this and fall back to synthetic, same pattern as every
     other live source in this repo."""
     import tifffile
     from datetime import datetime, timedelta, timezone

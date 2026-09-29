@@ -33,7 +33,7 @@ function statRow(
     >
       <span className="lbl">{label}</span>
       <span className="val mono" style={{ fontSize: 11 }}>
-        {stat ? `${stat.min}–${stat.max}${unit} (AVG ${stat.mean}${unit})` : loading ? "CALCULATING…" : "—"}
+        {stat ? `${stat.min}–${stat.max}${unit} (AVG ${stat.mean}${unit})` : loading ? "CALCULATING…" : "-"}
       </span>
     </div>
   );
@@ -141,7 +141,7 @@ export function AreaFloating({
                   : `${reading.cloudburst_rainrate_mm_hr.min}–${reading.cloudburst_rainrate_mm_hr.max} mm/hr`
                 : loading
                 ? "…"
-                : "—"}
+                : "-"}
             </span>
           </div>
           <div

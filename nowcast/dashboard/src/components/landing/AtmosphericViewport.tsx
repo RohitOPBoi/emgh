@@ -100,7 +100,7 @@ export default function AtmosphericViewport({
   return (
     <div className="atm-viewport-root" aria-hidden="true">
       {/* ══════════════════════════════════════════════════════════════════════
-          SCENE 01 — EARTH SURROUNDED BY CLOUDS
+          SCENE 01 - EARTH SURROUNDED BY CLOUDS
       ══════════════════════════════════════════════════════════════════════ */}
       <div
         className="atm-stage-layer"
@@ -121,7 +121,7 @@ export default function AtmosphericViewport({
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SCENE 02 — BRIGHT CLOUD OCEAN / AERIAL VIEW
+          SCENE 02 - BRIGHT CLOUD OCEAN / AERIAL VIEW
       ══════════════════════════════════════════════════════════════════════ */}
       <div
         className="atm-stage-layer"
@@ -153,7 +153,7 @@ export default function AtmosphericViewport({
       />
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SCENE 03 — DARK THUNDERSTORM / TORNADO SUPERCELL
+          SCENE 03 - DARK THUNDERSTORM / TORNADO SUPERCELL
       ══════════════════════════════════════════════════════════════════════ */}
       <div
         className="atm-stage-layer"
@@ -173,7 +173,7 @@ export default function AtmosphericViewport({
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SCENE 04 — TOP-DOWN ROTATING CYCLONE EPICENTER
+          SCENE 04 - TOP-DOWN ROTATING CYCLONE EPICENTER
       ══════════════════════════════════════════════════════════════════════ */}
       <div
         ref={cycloneElemRef}

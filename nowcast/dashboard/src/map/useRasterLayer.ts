@@ -5,7 +5,7 @@ import type { Bbox } from "../types";
 
 /** Adds (or updates in place) a single image-raster layer. Shared by
  * satellite/radar overlays, the pySTEPS/DGMR model-frame overlay, and the
- * temperature/humidity/wind rasters — they only differ in id/image/bbox. */
+ * temperature/humidity/wind rasters - they only differ in id/image/bbox. */
 export function useRasterLayer(
   map: MaplibreMap | null,
   layerId: string,

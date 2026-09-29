@@ -7,11 +7,11 @@ extrapolate it forward (semi-Lagrangian) for 0-6h.
 Real input when `USE_LIVE_RADAR=true`: RainViewer's own `radar.past` list
 already holds ~2h of history frames, so `rainviewer_radar.
 fetch_reflectivity_sequence()` stitches the last `history_frames` of them
-into the (T, H, W) stack pySTEPS needs — genuine motion estimated from
+into the (T, H, W) stack pySTEPS needs - genuine motion estimated from
 genuine consecutive radar frames, not a single "now" mosaic. Falls back to
 the synthetic sequence (processing/synthetic_radar.py) on any live-fetch
 failure (RainViewer down, fewer than 2 past frames available, network
-error) — same fallback pattern as every other USE_LIVE_* source in this
+error) - same fallback pattern as every other USE_LIVE_* source in this
 project. `run_forecast`'s return dict reports which one actually happened
 via `source`.
 """
@@ -36,7 +36,7 @@ def _dbz_to_rainrate(dbz):
 
 def _live_sequence(history_frames):
     """Real RainViewer reflectivity time series, regridded to GRID_SIZE
-    over the active region's bbox. Raises on any failure — the caller
+    over the active region's bbox. Raises on any failure - the caller
     decides how to fall back."""
     from nowcast.ingestion.rainviewer_radar import fetch_reflectivity_sequence
 

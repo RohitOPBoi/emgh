@@ -2,23 +2,22 @@
 
 Unlike the per-region demo (models/hazard.py + processing/synthetic_radar.py,
 still used by the Forecast/Replay pages), this has no synthetic storm and no
-fixed demo city — it looks at real RainViewer reflectivity and real
+fixed demo city - it looks at real RainViewer reflectivity and real
 Blitzortung lightning strikes across the whole country and flags wherever
 they actually indicate hail-favorable conditions or a strike, right now.
 
-Downburst (needs Doppler radial velocity — no public source publishes raw
+Downburst (needs Doppler radial velocity - no public source publishes raw
 volumetric scans) and cloudburst (needs a persisted real radar time-series
 for pySTEPS to extrapolate from, which a single "now" RainViewer frame per
 cycle doesn't provide) have no real all-India equivalent. Rather than fake
-either at country scale, both are simply absent from this module's output —
-they remain available, synthetic-backed, in the per-region demo.
+either at country scale, both are simply absent from this module's output - they remain available, synthetic-backed, in the per-region demo.
 
 Hail rule here is simplified from hazard.py's grid rule: reflectivity +
 collocated real lightning only, no cold-cloud-top requirement. Real
 satellite coverage (Copernicus Sentinel-3's polar orbit, EUMETSAT pending
 license) isn't available everywhere in India at once, so requiring it would
 make hail flicker on/off based on incidental satellite coverage rather than
-actual storm severity — reflectivity + lightning is still a real,
+actual storm severity - reflectivity + lightning is still a real,
 non-synthetic signal on its own.
 
 Severity is 3-tier (low/moderate/high, colored green/yellow/red on the map)
@@ -27,16 +26,16 @@ collocated; lightning strikes are always "high" (an actual strike is
 inherently a live hazard, not a graded risk).
 
 `lead_minutes` (used by /hazards' lead-time slider) does NOT re-run
-detection at a future time — there's no real all-India forecast mechanism
+detection at a future time - there's no real all-India forecast mechanism
 for hail/lightning (same reason cloudburst/downburst were dropped
 entirely). Instead each point's position is advected by the real ECMWF
 wind vector at that location, a standard simplified nowcasting technique
-(storms roughly follow the steering flow) — NOT a re-detected forecast,
+(storms roughly follow the steering flow) - NOT a re-detected forecast,
 just today's real detections moved along today's real wind. Documented
 explicitly rather than left implicit, since it's a real/synthetic
 distinction worth being honest about.
 
-Output is real hail + lightning only — no synthetic filler points. The
+Output is real hail + lightning only - no synthetic filler points. The
 map may legitimately show few or zero points when India has little active
 convection; that's the true state, not something to paper over.
 """
@@ -44,12 +43,19 @@ import os
 import sys
 
 import numpy as np
+from scipy import ndimage
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from nowcast.configs.settings import INDIA_BBOX, HAIL_REFLECTIVITY_MIN_DBZ
+from nowcast.configs.settings import (
+    INDIA_BBOX,
+    HAIL_REFLECTIVITY_MIN_DBZ,
+    CLOUDBURST_RAIN_RATE_MM_HR,
+    DOWNBURST_PROXY_MIN_DBZ,
+    DOWNBURST_PROXY_GRADIENT_DBZ,
+)
 from nowcast.configs.districts_india import nearest_districts_vectorized
 
-INDIA_GRID_SIZE = 150  # ~0.2deg/cell, ~22km — fine enough for a country overview
+INDIA_GRID_SIZE = 150  # ~0.2deg/cell, ~22km - fine enough for a country overview
 LIGHTNING_PROXIMITY_KM = 25.0  # collocated-with-lightning bumps hail severity up a tier
 HAIL_MODERATE_DBZ = 65.0  # >= this (and below HIGH) -> "moderate"
 HAIL_HIGH_DBZ = 78.0  # >= this -> "high"
@@ -68,7 +74,7 @@ def _km_per_deg(lat):
 
 def advect_point(lat, lon, lead_minutes):
     """Shift (lat, lon) by the real ECMWF wind vector at that point over
-    `lead_minutes` — see module docstring for what this is and isn't."""
+    `lead_minutes` - see module docstring for what this is and isn't."""
     if lead_minutes <= 0:
         return lat, lon
     from nowcast.processing import weather_fields
@@ -77,8 +83,7 @@ def advect_point(lat, lon, lead_minutes):
     speed_ms = sample["wind_speed_ms"]
     if speed_ms <= 0:
         return lat, lon
-    # wind_dir_deg is the direction wind blows FROM (met convention) —
-    # movement is the opposite direction.
+    # wind_dir_deg is the direction wind blows FROM (met convention) - # movement is the opposite direction.
     to_rad = np.radians((sample["wind_dir_deg"] + 180) % 360)
     distance_km = speed_ms * (lead_minutes * 60) / 1000.0
     km_lat, km_lon = _km_per_deg(lat)
@@ -100,17 +105,70 @@ def advect_hazards(hazards, lead_minutes):
     return out
 
 
+def _component_peaks(mask, values):
+    """One (y, x) per connected region of `mask`: the cell with the highest
+    `values`, plus the region's cell count. A storm core spanning 40 grid
+    cells is one hazard, not forty."""
+    labels, n = ndimage.label(mask)
+    if n == 0:
+        return []
+    idx = np.arange(1, n + 1)
+    peaks = ndimage.maximum_position(values, labels, idx)
+    sizes = ndimage.sum(mask, labels, idx)
+    return [(int(y), int(x), int(sz)) for (y, x), sz in zip(peaks, sizes)]
+
+
+def _cloudburst_points(reflectivity, lat_grid, lon_grid):
+    """Cloudburst from REAL radar: Marshall-Palmer rain rate (Z = 200 R^1.6)
+    at or above IMD's very-heavy-rain boundary. Detection on the current
+    radar frame (advected for lead times like every other point), not a
+    model forecast."""
+    rate = np.power(np.power(10.0, reflectivity / 10.0) / 200.0, 1.0 / 1.6)
+    out = []
+    for y, x, size in _component_peaks(rate >= CLOUDBURST_RAIN_RATE_MM_HR, rate):
+        r = float(rate[y, x])
+        severity = "high" if r >= 50 else "moderate" if r >= 30 else "low"
+        out.append({
+            "lat": float(lat_grid[y, x]), "lon": float(lon_grid[y, x]), "type": "cloudburst",
+            "severity": severity, "rainrate_mm_hr": round(r, 1), "cells": size, "source": "real",
+        })
+    return out
+
+
+def _downburst_proxy_points(reflectivity, lat_grid, lon_grid):
+    """Downburst POTENTIAL from real radar reflectivity - a proxy, and
+    labelled as one (`source: "proxy"`). True downburst detection needs
+    Doppler radial velocity, which no free public feed exposes. What
+    reflectivity alone can show is the precipitation-loaded core that
+    collapses into a downburst: a very intense core (>= DOWNBURST_PROXY_MIN_DBZ)
+    with a sharp horizontal gradient (>= DOWNBURST_PROXY_GRADIENT_DBZ per
+    cell) at its edge."""
+    local_min = ndimage.minimum_filter(reflectivity, size=3)
+    gradient = reflectivity - local_min
+    core = (reflectivity >= DOWNBURST_PROXY_MIN_DBZ) & (gradient >= DOWNBURST_PROXY_GRADIENT_DBZ)
+    out = []
+    for y, x, size in _component_peaks(core, gradient):
+        g = float(gradient[y, x])
+        severity = "high" if g >= 2 * DOWNBURST_PROXY_GRADIENT_DBZ else "moderate"
+        out.append({
+            "lat": float(lat_grid[y, x]), "lon": float(lon_grid[y, x]), "type": "downburst",
+            "severity": severity, "reflectivity_dbz": round(float(reflectivity[y, x]), 1),
+            "gradient_dbz_per_cell": round(g, 1), "cells": size, "source": "proxy",
+        })
+    return out
+
+
 def detect(reflectivity=None, strikes=None):
-    """Real hail + lightning hazard points across all of India.
+    """Real hail, lightning and cloudburst points, plus proxy downburst
+    potential, across all of India.
 
     `reflectivity`/`strikes` can be pre-fetched and passed in (main.py does
     this, sharing one RainViewer/Blitzortung fetch between hazard detection
-    and the /raw-layers all-India radar image instead of fetching twice) —
-    left as None, this fetches them itself, so the module stays runnable
+    and the /raw-layers all-India radar image instead of fetching twice) - left as None, this fetches them itself, so the module stays runnable
     standalone via `python -m nowcast.models.hazard_india`.
 
     Returns a list of {lat, lon, type, severity, ...} dicts. Raises if the
-    radar fetch itself fails (no data at all to work with) — callers should
+    radar fetch itself fails (no data at all to work with) - callers should
     treat that like any other live-source failure. A failed *lightning*
     fetch is non-fatal: hail detection still runs on reflectivity alone,
     just without the lightning-proximity severity bump, and simply
@@ -139,7 +197,7 @@ def detect(reflectivity=None, strikes=None):
 
     for s in strikes:
         # A real strike is inherently an immediate hazard, not a graded
-        # risk — always "high" (red), unlike hail's threshold-based tiers.
+        # risk - always "high" (red), unlike hail's threshold-based tiers.
         hazards.append({"lat": s["lat"], "lon": s["lon"], "type": "lightning", "severity": "high"})
 
     strike_lats = np.array([s["lat"] for s in strikes]) if strikes else None
@@ -172,11 +230,13 @@ def detect(reflectivity=None, strikes=None):
             }
         )
 
-    for h in hazards:
-        h["source"] = "real"
+    hazards.extend(_cloudburst_points(reflectivity, lat_grid, lon_grid))
+    hazards.extend(_downburst_proxy_points(reflectivity, lat_grid, lon_grid))
 
-    # District/state labels (judges think in districts, not grid cells —
-    # see districts_india.py for what "nearest centroid" actually means
+    for h in hazards:
+        h.setdefault("source", "real")
+
+    # District/state labels (judges think in districts, not grid cells - # see districts_india.py for what "nearest centroid" actually means
     # here). Vectorized across every hazard point at once rather than a
     # per-point lookup loop, same reasoning as the lightning-proximity
     # vectorization above.
@@ -195,6 +255,11 @@ if __name__ == "__main__":
     result = detect()
     hail = [h for h in result if h["type"] == "hail"]
     lightning = [h for h in result if h["type"] == "lightning"]
-    print(f"{len(hail)} hail point(s), {len(lightning)} lightning strike(s) across India right now")
+    cloudburst = [h for h in result if h["type"] == "cloudburst"]
+    downburst = [h for h in result if h["type"] == "downburst"]
+    print(
+        f"{len(hail)} hail, {len(lightning)} lightning, {len(cloudburst)} cloudburst, "
+        f"{len(downburst)} downburst-potential point(s) across India right now"
+    )
     for h in hail[:5]:
         print(h)

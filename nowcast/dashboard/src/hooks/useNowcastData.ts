@@ -60,7 +60,7 @@ export function useRawLayers(): FetchState<RawLayersResponse> {
 
 /** Weather layers and wind vectors are enabled only once a variable is
  * actually selected (not needed for the primary hazard demo), but once
- * enabled they re-fetch on every leadMinutes change — same lead-time state
+ * enabled they re-fetch on every leadMinutes change - same lead-time state
  * that drives hazards/nowcast-frame, so the existing Play/Pause button
  * animates the weather overlay through the full 0-6h window too, instead of
  * it staying frozen at "now". */

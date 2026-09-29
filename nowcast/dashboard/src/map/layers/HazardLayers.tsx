@@ -54,10 +54,12 @@ export function HazardLayers({
   hazards,
   hailVisible = true,
   lightningVisible = true,
+  onSelectLocation,
 }: {
   hazards: HazardsResponse | null;
   hailVisible?: boolean;
   lightningVisible?: boolean;
+  onSelectLocation?: (lat: number, lon: number) => void;
 }) {
   const { map, ready } = useAgrimMap();
   const popupRef = useRef<Popup | null>(null);
@@ -171,6 +173,28 @@ export function HazardLayers({
           row.textContent = text;
           root.appendChild(row);
         }
+
+        if (onSelectLocation) {
+          const actionBtn = document.createElement("button");
+          actionBtn.className = "popup-inspect-btn";
+          actionBtn.textContent = "Inspect point telemetry →";
+          actionBtn.style.cssText =
+            "margin-top: 8px; width: 100%; padding: 5px 8px; font-size: 11px; font-weight: 600; color: #a6e3ff; background: rgba(166,227,255,0.12); border: 1px solid rgba(166,227,255,0.3); border-radius: 4px; cursor: pointer; text-align: center; transition: all 0.2s;";
+          actionBtn.addEventListener("mouseenter", () => {
+            actionBtn.style.background = "rgba(166,227,255,0.22)";
+            actionBtn.style.borderColor = "#a6e3ff";
+          });
+          actionBtn.addEventListener("mouseleave", () => {
+            actionBtn.style.background = "rgba(166,227,255,0.12)";
+            actionBtn.style.borderColor = "rgba(166,227,255,0.3)";
+          });
+          actionBtn.addEventListener("click", () => {
+            popupRef.current?.remove();
+            onSelectLocation(lat, lon);
+          });
+          root.appendChild(actionBtn);
+        }
+
         popup.setDOMContent(root).addTo(map);
         popupRef.current = popup;
       });

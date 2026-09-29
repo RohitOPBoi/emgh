@@ -549,7 +549,12 @@ function MapLayers(props: {
   return (
     <>
       <WmsBaseLayer selectedId={props.baseMapId} />
-      <HazardLayers hazards={props.hazards} hailVisible={props.heatmapsVisible} lightningVisible={props.lightningVisible} />
+      <HazardLayers
+        hazards={props.hazards}
+        hailVisible={props.heatmapsVisible}
+        lightningVisible={props.lightningVisible}
+        onSelectLocation={props.onSelectLocation}
+      />
       <WmsOverlayLayers activeIds={props.activeOverlayIds} />
       <SensorRasterLayers layers={props.rawLayers} satelliteVisible={props.satelliteVisible} radarVisible={props.radarVisible} />
       <WeatherRasterLayers layers={props.weatherLayers} activeVar={props.activeVar} />

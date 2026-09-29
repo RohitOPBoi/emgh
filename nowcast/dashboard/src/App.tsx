@@ -367,6 +367,7 @@ function Dashboard() {
               areaFillOpacity={areaFillOpacity}
               baseMapId={baseMapId}
               activeOverlayIds={activeOverlayIds}
+              onSelectLocation={selectRegion}
             />
 
             {rainSimVisible && (
@@ -529,6 +530,7 @@ function MapLayers(props: {
   areaFillOpacity?: number;
   baseMapId: string;
   activeOverlayIds: Set<string>;
+  onSelectLocation?: (lat: number, lon: number) => void;
 }) {
   return (
     <>
@@ -541,7 +543,7 @@ function MapLayers(props: {
       <ModelFrameLayer frame={props.modelFrame} visible={props.modelFrameVisible} />
       <RegionBox region={props.region} />
       <AreaBox drawing={props.drawingArea} selected={props.area} fillColor={props.areaFillColor} fillOpacity={props.areaFillOpacity} />
-      <IndiaBase />
+      <IndiaBase onSelectLocation={props.onSelectLocation} />
     </>
   );
 }

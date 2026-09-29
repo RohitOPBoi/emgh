@@ -59,7 +59,11 @@ function graticule(step = 5): GeoJSON.FeatureCollection {
  * hole, glowing official outline, state borders, graticule, and DOM place
  * labels (no glyph server needed). Works fully offline. Mount it last among
  * the map layer siblings so borders render above every data layer. */
-export function IndiaBase() {
+export function IndiaBase({
+  onSelectLocation,
+}: {
+  onSelectLocation?: (lat: number, lon: number) => void;
+} = {}) {
   const { map, ready } = useAgrimMap();
 
   useEffect(() => {
@@ -128,6 +132,16 @@ export function IndiaBase() {
         const inner = document.createElement("span");
         inner.className = "map-label map-label--state" + (pt.area < 2.5 ? " map-label--minor" : "");
         inner.textContent = STATE_NAME_FIX[raw] ?? raw;
+        inner.style.cursor = "pointer";
+        inner.title = `Click to inspect ${STATE_NAME_FIX[raw] ?? raw} telemetry`;
+        inner.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (onSelectLocation) {
+            onSelectLocation(pt.lat, pt.lon);
+          } else {
+            map.flyTo({ center: [pt.lon, pt.lat], zoom: 6.5, duration: 800 });
+          }
+        });
         el.appendChild(inner);
         markers.push(new Marker({ element: el, anchor: "center" }).setLngLat([pt.lon, pt.lat]).addTo(map));
       }
@@ -153,15 +167,27 @@ export function IndiaBase() {
       }
       for (const r of regions?.options ?? []) {
         const [x0, y0, x1, y1] = r.bbox;
+        const cLon = (x0 + x1) / 2;
+        const cLat = (y0 + y1) / 2;
         const el = document.createElement("div");
         const inner = document.createElement("span");
         inner.className = "map-label map-label--city";
+        inner.style.cursor = "pointer";
+        inner.title = `Click to zoom into ${r.name} nowcast sector`;
         const dot = document.createElement("i");
         const text = document.createElement("b");
         text.textContent = r.name;
         inner.append(dot, text);
+        inner.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (onSelectLocation) {
+            onSelectLocation(cLat, cLon);
+          } else {
+            map.flyTo({ center: [cLon, cLat], zoom: 9.5, duration: 800 });
+          }
+        });
         el.appendChild(inner);
-        markers.push(new Marker({ element: el, anchor: "left", offset: [-4, 0] }).setLngLat([(x0 + x1) / 2, (y0 + y1) / 2]).addTo(map));
+        markers.push(new Marker({ element: el, anchor: "left", offset: [-4, 0] }).setLngLat([cLon, cLat]).addTo(map));
       }
 
     })().catch((e) => console.error("[india-base]", e));

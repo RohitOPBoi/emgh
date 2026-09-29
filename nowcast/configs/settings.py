@@ -186,7 +186,7 @@ HAIL_LIGHTNING_PROB_MIN = 0.30
 # never from a PNG overlay fallback.
 DOWNBURST_VELOCITY_DELTA_MS = 25.0
 
-INGEST_CYCLE_MINUTES = 15
+INGEST_CYCLE_MINUTES = max(1, int(os.getenv("INGEST_CYCLE_MINUTES", "15")))
 
 # Twilio alerts configuration
 ALERT_MIN_SEVERITY = os.getenv("ALERT_MIN_SEVERITY", "high")

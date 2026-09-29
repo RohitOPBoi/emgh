@@ -87,7 +87,7 @@ def fetch_historical_rain_rate(lat, lon, date_str):
 
 def run_backtest():
     print("="*60)
-    print("MEGHDRISHTI HISTORICAL BACKTESTING SUITE")
+    print("AGRIM HISTORICAL BACKTESTING SUITE")
     print("="*60)
     print(f"Testing Cloudburst Threshold (ERA5 Adjusted): >= {ERA5_CLOUDBURST_THRESHOLD} mm/hr")
     print("Fetching ERA5 historical reanalysis data from Copernicus...\n")

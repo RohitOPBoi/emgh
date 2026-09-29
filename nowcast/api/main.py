@@ -47,7 +47,7 @@ from nowcast.alerts import sms_alerts
 _SEVERITY_RANK = {"low": 0, "moderate": 1, "high": 2}
 _DISTRICT_CENTROIDS = {name: (lat, lon) for name, _state, lat, lon in DISTRICTS}
 
-app = FastAPI(title="MeghDrishti Nowcast API")
+app = FastAPI(title="Agrim Nowcast API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -542,17 +542,24 @@ def storm_eta():
     return {"cells": storm_cells(_cache["records"])}
 
 
-def _array_to_png_data_url(arr, cmap_name, vmin=None, vmax=None):
+def _array_to_png_data_url(arr, cmap_name, vmin=None, vmax=None, transparent_below=None, fade=None):
+    """Colour-map an array to a PNG data URL. `transparent_below` makes cells
+    under that value fully transparent (so "no rain" shows the basemap, not
+    the colormap's zero colour); `fade` ramps alpha in over that many units
+    above the threshold so echo edges are feathered rather than stair-stepped."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.cm as cm
     import matplotlib.colors as mcolors
     import numpy as np
     from PIL import Image
 
     norm = mcolors.Normalize(vmin=vmin if vmin is not None else float(arr.min()),
                               vmax=vmax if vmax is not None else float(arr.max()))
-    rgba = (cm.get_cmap(cmap_name)(norm(arr)) * 255).astype(np.uint8)
+    rgba = matplotlib.colormaps[cmap_name](norm(arr))
+    if transparent_below is not None:
+        ramp = max(float(fade or 0.0), 1e-6)
+        rgba[..., 3] = np.clip((arr - transparent_below) / ramp, 0.0, 1.0)
+    rgba = (rgba * 255).astype(np.uint8)
     # flip vertically: array row 0 is the southern edge of the grid, PNG row 0 is the top
     img = Image.fromarray(np.flipud(rgba), mode="RGBA")
     buf = io.BytesIO()
@@ -637,7 +644,7 @@ def raw_layers():
                 "id": "radar_reflectivity",
                 "label": "Radar reflectivity (dBZ) — all India",
                 "bbox": INDIA_BBOX,
-                "image": _array_to_png_data_url(india_reflectivity, "turbo", vmin=0, vmax=65),
+                "image": _array_to_png_data_url(india_reflectivity, "turbo", vmin=0, vmax=65, transparent_below=5, fade=8),
                 "source": radar_source,
             }
         )
@@ -648,7 +655,7 @@ def raw_layers():
                 "id": "radar_reflectivity",
                 "label": "Radar reflectivity (dBZ)",
                 "bbox": frame["bbox"],
-                "image": _array_to_png_data_url(ch["reflectivity_dbz"], "turbo", vmin=0, vmax=65),
+                "image": _array_to_png_data_url(ch["reflectivity_dbz"], "turbo", vmin=0, vmax=65, transparent_below=5, fade=8),
                 "source": radar_source,
             }
         )
@@ -729,7 +736,7 @@ def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF s
                 "unit": "mm/hr",
                 "bbox": INDIA_BBOX,
                 "vmin": 0, "vmax": 65,
-                "image": _array_to_png_data_url(rainrate, "turbo", vmin=0, vmax=65),
+                "image": _array_to_png_data_url(rainrate, "turbo", vmin=0, vmax=65, transparent_below=0.1, fade=1.5),
             }
         )
         
@@ -744,7 +751,7 @@ def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF s
         lon_min, lat_min, lon_max, lat_max = INDIA_BBOX
         for h in india_hazards:
             xi = int(round((h["lon"] - lon_min) / (lon_max - lon_min) * (risk.shape[1] - 1)))
-            yi = int(round((lat_max - h["lat"]) / (lat_max - lat_min) * (risk.shape[0] - 1)))
+            yi = int(round((h["lat"] - lat_min) / (lat_max - lat_min) * (risk.shape[0] - 1)))  # row 0 = south
             if 0 <= xi < risk.shape[1] and 0 <= yi < risk.shape[0]:
                 if h["type"] == "hail":
                     risk[yi, xi] += 2.0
@@ -771,6 +778,87 @@ def weather_layers(lead_time: int = Query(0, description="minutes ahead; ECMWF s
         else "synthetic ambient fields — not an IMD/MOSDAC/ECMWF product"
     )
     return {"layers": layers, "note": note, "source": source}
+
+
+@app.get("/rain-field")
+def rain_field(lead_time: int = Query(0, ge=0, le=360, description="minutes ahead")):
+    """Rain-rate grid for the browser-side rain simulation.
+
+    All-India from live radar (RainViewer/IMD) when it is available —
+    advected along the ambient wind for lead_time > 0 — otherwise the
+    active demo region's pySTEPS forecast frame, so the simulation always
+    has something real-pipeline-derived to draw and always says which."""
+    import numpy as np
+    from nowcast.configs.settings import INDIA_BBOX
+    from nowcast.processing import rain_field as rf
+
+    g = weather_fields.generate_grid(lead_time)
+    with _lock:
+        dbz = _india_hazards_cache["reflectivity"]
+
+    if dbz is not None:
+        rate = rf.dbz_to_rate(dbz)
+        rate = rf.advect(rate, INDIA_BBOX, g["wind_speed_ms"], g["wind_dir_deg"], lead_time)
+        return rf.encode(
+            rate, INDIA_BBOX, lead_time, "rainviewer-imd",
+            "current radar echo advected by ambient wind (persistence + steering flow)" if lead_time else "current radar (Marshall-Palmer Z-R)",
+            g["wind_speed_ms"], g["wind_dir_deg"],
+        )
+
+    try:
+        fc = _refresh_forecast()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"no rain data available: {exc}")
+    idx = min(range(len(fc["timestamps_min"])), key=lambda i: abs(fc["timestamps_min"][i] - lead_time))
+    return rf.encode(
+        np.asarray(fc["rainrate_forecast"][idx], dtype=np.float32), fc["bbox"], fc["timestamps_min"][idx],
+        f"pysteps-{fc.get('source', 'unknown')}", "pySTEPS Lucas-Kanade extrapolation (active demo region)",
+        g["wind_speed_ms"], g["wind_dir_deg"],
+        valid_note="all-India radar unavailable — showing the active demo region",
+    )
+
+
+@app.get("/system/status")
+def system_status():
+    """What is live, what is synthetic, and what the models are doing right
+    now — the honest provenance panel the landing page and dashboard show."""
+    from nowcast.configs.settings import (
+        USE_LIVE_IMD, USE_LIVE_ECMWF, USE_LIVE_RADAR, USE_LIVE_LIGHTNING, USE_LIVE_SATELLITE,
+    )
+
+    def mode(flag):
+        return "live" if flag else "synthetic"
+
+    with _lock:
+        hz = list(_india_hazards_cache["hazards"])
+        india_error = _india_hazards_cache["error"]
+        india_at = _india_hazards_cache["computed_at"]
+        has_radar = _india_hazards_cache["reflectivity"] is not None
+    counts = {}
+    for h in hz:
+        counts[h["type"]] = counts.get(h["type"], 0) + 1
+    return {
+        "sources": {
+            # The all-India view (hazards, rain field, radar layer) always tries
+            # RainViewer + Blitzortung each cycle regardless of the per-region
+            # USE_LIVE_* flags, so its status reflects whether that fetch worked.
+            "radar": {"label": "Radar reflectivity", "provider": "RainViewer (IMD network)", "mode": mode(has_radar or USE_LIVE_RADAR), "receiving": has_radar},
+            "lightning": {"label": "Lightning strikes", "provider": "Blitzortung VLF", "mode": mode(has_radar or USE_LIVE_LIGHTNING), "receiving": counts.get("lightning", 0) > 0},
+            "satellite": {"label": "Satellite IR", "provider": "Sentinel-3 SLSTR / MSG SEVIRI", "mode": mode(USE_LIVE_SATELLITE), "receiving": USE_LIVE_SATELLITE},
+            "model": {"label": "Weather model grid", "provider": "ECMWF Open Data", "mode": mode(USE_LIVE_ECMWF), "receiving": USE_LIVE_ECMWF},
+            "stations": {"label": "Station weather", "provider": "Tomorrow.io / IMD", "mode": mode(USE_LIVE_IMD), "receiving": USE_LIVE_IMD},
+        },
+        "hazards": {"total": len(hz), "by_type": counts, "updated_unix": india_at or None, "error": india_error},
+        "storm_cells": len(storm_cells(_cache["records"])) if _cache["records"] else 0,
+        "models": {
+            "pysteps": {"horizon_min": 360, "step_min": 10},
+            "dgmr": {"horizon_min": 90, "step_min": 15},
+            "smaat": {"horizon_min": 60, "available": False},
+        },
+        "ingest_cycle_min": INGEST_CYCLE_MINUTES,
+        "active_region": get_region_name(),
+        "regions": len(REGIONS),
+    }
 
 
 @app.get("/wind-vectors")

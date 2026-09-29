@@ -10,6 +10,10 @@ export interface Hazard {
   reflectivity_dbz?: number;
   velocity_delta_ms?: number;
   rainrate_mm_hr?: number;
+  /** all-India detections carry the nearest district (backend districts_india.py) */
+  district?: string;
+  state?: string;
+  source?: string;
 }
 
 export interface HazardFeatureProperties {
@@ -159,4 +163,43 @@ export interface HistoryHazardsResponse {
 export interface RegionsResponse {
   active: string;
   options: { key: string; name: string; bbox: Bbox }[];
+}
+
+export type SourceMode = "live" | "synthetic";
+
+export interface SourceStatus {
+  label: string;
+  provider: string;
+  mode: SourceMode;
+  receiving: boolean;
+}
+
+export interface SystemStatus {
+  sources: Record<"radar" | "lightning" | "satellite" | "model" | "stations", SourceStatus>;
+  hazards: { total: number; by_type: Record<string, number>; updated_unix: number | null; error: string | null };
+  storm_cells: number;
+  models: {
+    pysteps: { horizon_min: number; step_min: number };
+    dgmr: { horizon_min: number; step_min: number };
+    smaat: { horizon_min: number; available: boolean };
+  };
+  ingest_cycle_min: number;
+  active_region: string;
+  regions: number;
+}
+
+export interface RainField {
+  bbox: Bbox;
+  width: number;
+  height: number;
+  quant: number;
+  encoding: "sqrt";
+  /** base64 uint8 grid, row 0 = southern edge, mm/hr = (byte / quant) ** 2 */
+  rate: string;
+  wind: { width: number; height: number; u: number[]; v: number[] };
+  lead_minutes: number;
+  source: string;
+  method: string;
+  stats: { max_mm_hr: number; wet_fraction: number; very_heavy_cells: number };
+  note: string | null;
 }

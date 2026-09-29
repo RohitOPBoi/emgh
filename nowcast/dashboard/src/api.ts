@@ -13,6 +13,8 @@ import type {
   RegionsResponse,
   AreaForecast,
   Bbox,
+  SystemStatus,
+  RainField,
 } from "./types";
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -54,6 +56,8 @@ export const api = {
     getJSON<NowcastFrame>(`/nowcast-frame?model=${model}&lead_time=${leadMinutes}`),
   historyTimestamps: () => getJSON<HistoryTimestampsResponse>("/history/timestamps"),
   historyHazards: (timestamp: string) => getJSON<HistoryHazardsResponse>(`/history/hazards?timestamp=${timestamp}`),
+  systemStatus: () => getJSON<SystemStatus>("/system/status"),
+  rainField: (leadMinutes: number) => getJSON<RainField>(`/rain-field?lead_time=${leadMinutes}`),
   regions: () => getJSON<RegionsResponse>("/regions"),
   setRegion: (key: string) => postJSON<{ active: string; name: string }>(`/regions/${key}`),
   areaForecast: (bbox: Bbox, leadMinutes: number) => {

@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { useMeghMap } from "../MapContext";
+import { useAgrimMap } from "../MapContext";
 import { BASE_LAYERS, wmsTileUrl } from "../../lib/mosdacLayers";
 
 /** Real MOSDAC/Bhuvan base imagery, selectable in place of the default Esri
  * dark-gray canvas. "none" means keep Esri. Only one is ever visible; all
  * are added once (hidden) so switching is instant, not a re-fetch. */
 export function WmsBaseLayer({ selectedId }: { selectedId: string }) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
 
   useEffect(() => {
     if (!map || !ready) return;
@@ -30,6 +30,11 @@ export function WmsBaseLayer({ selectedId }: { selectedId: string }) {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, "visibility", def.id === selectedId ? "visible" : "none");
       }
+    }
+    // The tinted land fill exists to lift India off the dark canvas; over a
+    // real ISRO/Bhuvan base map it would only wash the imagery out.
+    if (map.getLayer("india-land")) {
+      map.setLayoutProperty("india-land", "visibility", selectedId === "none" ? "visible" : "none");
     }
     if (map.getLayer("esri-dark-canvas-layer")) {
       map.setLayoutProperty("esri-dark-canvas-layer", "visibility", selectedId === "none" ? "visible" : "none");

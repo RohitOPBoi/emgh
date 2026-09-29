@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { MapMouseEvent } from "maplibre-gl";
-import { useMeghMap } from "./MapProvider";
+import { useAgrimMap } from "./MapProvider";
 
 /** Fires `onSelect(lat, lon)` when the user clicks the map anywhere that
  * isn't a station marker (which has its own click handler for its popup).
@@ -8,7 +8,7 @@ import { useMeghMap } from "./MapProvider";
  * (useAreaDrag) is active — a click during a drag-drawn area shouldn't also
  * fire a point selection. */
 export function useRegionClick(enabled: boolean, onSelect: (lat: number, lon: number) => void) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
 
   useEffect(() => {
     if (!map || !ready || !enabled) return;

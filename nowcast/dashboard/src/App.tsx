@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { MapProvider, MapCanvas, useMeghMap } from "./map/MapProvider";
-import { ReferenceLabels } from "./map/layers/ReferenceLabels";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { MapProvider, MapCanvas, useAgrimMap } from "./map/MapProvider";
+import { INDIA_BOUNDS } from "./lib/india";
+import { IndiaBase } from "./map/layers/IndiaBase";
 import { HazardLayers } from "./map/layers/HazardLayers";
 import { SensorRasterLayers } from "./map/layers/SensorRasterLayers";
 import { WeatherRasterLayers } from "./map/layers/WeatherRasterLayers";
@@ -24,9 +25,10 @@ import { RightSidebar } from "./components/RightSidebar";
 import { BottomPanel } from "./components/BottomPanel";
 import { LayersDrawer } from "./components/LayersDrawer";
 import { RegionFloating } from "./components/RegionFloating";
+import { RainSimulation, type Strike } from "./components/RainSimulation";
 import { AreaFloating, type AreaVarId } from "./components/AreaFloating";
 import { VAR_COLOR_STOPS, VAR_RANGE, lerpColor } from "./lib/colors";
-import { Frame, BarChart2 } from "lucide-react";
+import { Frame, BarChart2, CloudRain } from "lucide-react";
 import { api, API_BASE, ApiError } from "./api";
 import {
   useHazards,
@@ -44,7 +46,7 @@ type VarId = "none" | "temperature" | "humidity" | "wind_speed" | "pressure" | "
 const LEAD_MAX = { pysteps: 360, dgmr: 90, smaat: 60 } as const;
 
 function Dashboard() {
-  const { map, tileError } = useMeghMap();
+  const { map, tileError } = useAgrimMap();
 
   const [leadMinutes, setLeadMinutes] = useState(0);
   const [model, setModel] = useState<ModelId>("pysteps");
@@ -75,12 +77,20 @@ function Dashboard() {
   const [areaLoading, setAreaLoading] = useState(false);
   const [areaVar, setAreaVar] = useState<AreaVarId>("none");
   const [activePanel, setActivePanel] = useState<ActivePanel>("none");
+  const [rainSimVisible, setRainSimVisible] = useState(false);
+  const [rainSlot, setRainSlot] = useState<HTMLElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isCanvasMode, setIsCanvasMode] = useState(false);
   const [apiUnreachable, setApiUnreachable] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Dock geometry drives both CSS (timeline/toolbar centring) and the map
+  // camera padding, so India always sits centred in the free map area.
+  const DOCK_PX = 316; // dock width + gap
+  const leftDockPx = activePanel === "layers" || !(leftCollapsed || isCanvasMode) ? DOCK_PX : 0;
+  const rightDockPx = !(rightCollapsed || isCanvasMode) ? DOCK_PX : 0;
 
   const hazards = useHazards(leadMinutes);
   const stormEta = useStormEta();
@@ -101,6 +111,10 @@ function Dashboard() {
     0
   );
 
+  const strikes: Strike[] = (hazards.data?.features ?? [])
+    .filter((f) => f.properties?.hazards?.some((h) => h.type === "lightning"))
+    .map((f) => ({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }));
+
   useEffect(() => {
     setApiUnreachable(Boolean(hazards.error && hazards.error.includes("Failed to fetch")));
     if (!hazards.error) setLastUpdated(new Date());
@@ -111,17 +125,19 @@ function Dashboard() {
   // city happens to be selected in the region picker, which only matters
   // for the separate Forecast/Replay pySTEPS/DGMR pages now. Runs once the
   // map's ready and doesn't fight the user's own panning/zooming afterward.
+  const dockPadRef = useRef({ l: 0, r: 0 });
   useEffect(() => {
     if (!map) return;
-    map.fitBounds(
-      [
-        [68.0, 6.5],
-        [97.5, 37.0],
-      ],
-      { padding: 40, duration: 0 }
-    );
+    const pad = { left: leftDockPx + 8, right: rightDockPx + 8, top: 64, bottom: 100 };
+    const first = dockPadRef.current.l === 0 && dockPadRef.current.r === 0 && !map.loaded();
+    dockPadRef.current = { l: leftDockPx, r: rightDockPx };
+    if (region || area) {
+      map.setPadding(pad); // keep the user's zoom on a selected point/area
+    } else {
+      map.fitBounds(INDIA_BOUNDS, { padding: pad, duration: first ? 0 : 500 });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map]);
+  }, [map, leftDockPx, rightDockPx]);
 
   // reset to a clean lead-time position whenever the model changes, since
   // DGMR's horizon (90min) is shorter than pySTEPS' (6h)
@@ -253,7 +269,8 @@ function Dashboard() {
   const dgmrUnavailable = forecastSummary.data?.available === false;
   const apiOk = !apiUnreachable && !hazards.error;
   const banner =
-    tileError ?? (apiUnreachable ? `Can't reach the backend at ${API_BASE} — start it with: uvicorn nowcast.api.main:app --port 8000` : null);
+    (apiUnreachable ? `Can't reach the backend at ${API_BASE} — start it with: uvicorn nowcast.api.main:app --port 8000` : null);
+  void tileError; // relief tiles are optional; the vector India base always renders
 
   return (
     <div className="app-shell">
@@ -276,7 +293,15 @@ function Dashboard() {
           }}
         />
 
-        <div className="main-body">
+        <div
+          className="main-body"
+          style={
+            {
+              "--left-dock": leftDockPx ? `${leftDockPx}px` : "0px",
+              "--right-dock": rightDockPx ? `${rightDockPx}px` : "0px",
+            } as CSSProperties
+          }
+        >
           {activePanel === "hazards" && (
             <HazardsPage
               hazards={hazards.data ?? null}
@@ -344,6 +369,15 @@ function Dashboard() {
               activeOverlayIds={activeOverlayIds}
             />
 
+            {rainSimVisible && (
+              <RainSimulation
+                leadMinutes={leadMinutes}
+                strikes={strikes}
+                hudTarget={rightCollapsed || isCanvasMode ? null : rainSlot}
+                onClose={() => setRainSimVisible(false)}
+              />
+            )}
+
             <div className="map-controls-top">
               <div className="layer-toggles" role="toolbar" aria-label="Map Layer Toggles">
                 <button
@@ -351,14 +385,14 @@ function Dashboard() {
                   aria-pressed={radarVisible}
                   onClick={() => setRadarVisible((v) => !v)}
                 >
-                  <div className={`status-dot ${radarVisible ? "ok" : ""}`} /> RADAR (IMD)
+                  <div className={`status-dot ${radarVisible ? "ok" : ""}`} /> RADAR
                 </button>
                 <button
                   className={`layer-btn ${satelliteVisible ? "active" : ""}`}
                   aria-pressed={satelliteVisible}
                   onClick={() => setSatelliteVisible((v) => !v)}
                 >
-                  <div className={`status-dot ${satelliteVisible ? "ok" : ""}`} /> SATELLITE (IR)
+                  <div className={`status-dot ${satelliteVisible ? "ok" : ""}`} /> SATELLITE
                 </button>
                 <button
                   className={`layer-btn ${lightningVisible ? "active" : ""}`}
@@ -379,7 +413,15 @@ function Dashboard() {
                   aria-pressed={baseMapId === "dem"}
                   onClick={() => setBaseMapId((v) => (v === "dem" ? "none" : "dem"))}
                 >
-                  <div className={`status-dot ${baseMapId === "dem" ? "ok" : ""}`} /> TOPOGRAPHY
+                  <div className={`status-dot ${baseMapId === "dem" ? "ok" : ""}`} /> TERRAIN
+                </button>
+                <button
+                  className={`layer-btn layer-btn--rain ${rainSimVisible ? "active" : ""}`}
+                  aria-pressed={rainSimVisible}
+                  onClick={() => setRainSimVisible((v) => !v)}
+                  title="Simulate rainfall over India — follows the lead-time slider"
+                >
+                  <CloudRain size={11} /> RAIN SIM
                 </button>
                 <button
                   className={`layer-btn ${areaSelectMode ? "active" : ""}`}
@@ -391,7 +433,7 @@ function Dashboard() {
                   }}
                   title="Drag on the map to select an area and see its current + forecast stats"
                 >
-                  <Frame size={11} /> {areaSelectMode ? "SELECTING…" : "BBOX SELECT"}
+                  <Frame size={11} /> {areaSelectMode ? "DRAWING…" : "SELECT AREA"}
                 </button>
                 <button
                   className={`layer-btn ${showLegend ? "active" : ""}`}
@@ -399,7 +441,7 @@ function Dashboard() {
                   onClick={() => setShowLegend((v) => !v)}
                   title="Show/hide Reflectivity and Severity Legends"
                 >
-                  <BarChart2 size={11} /> LEGENDS
+                  <BarChart2 size={11} /> LEGEND
                 </button>
               </div>
             </div>
@@ -449,6 +491,7 @@ function Dashboard() {
             showLegend={showLegend}
             onToggleLegend={() => setShowLegend((v) => !v)}
             activeVarMeta={activeMeta}
+            slotRef={setRainSlot}
           />
 
           <BottomPanel
@@ -498,7 +541,7 @@ function MapLayers(props: {
       <ModelFrameLayer frame={props.modelFrame} visible={props.modelFrameVisible} />
       <RegionBox region={props.region} />
       <AreaBox drawing={props.drawingArea} selected={props.area} fillColor={props.areaFillColor} fillOpacity={props.areaFillOpacity} />
-      <ReferenceLabels />
+      <IndiaBase />
     </>
   );
 }

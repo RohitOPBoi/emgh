@@ -1,4 +1,4 @@
-# MeghDrishti
+# Agrim
 
 ![Python](https://img.shields.io/badge/python-3.11-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)
@@ -8,12 +8,13 @@
 ![MapLibre](https://img.shields.io/badge/MapLibre-396CB2.svg?style=for-the-badge&logo=maplibre&logoColor=white)
 
 <p align="center">
-  <img src="logo.png" width="200px" alt="MeghDrishti Logo"/>
+  <img src="logo.png" width="200px" alt="Agrim Logo"/>
 </p>
 
 <p align="center">
-  <b>Convective-scale nowcasting system (SIH 2026)</b><br/>
-  Real-time 0-6h thunderstorm, hail, downburst and cloudburst prediction fusing IMD radar, INSAT satellite, and Blitzortung lightning data on a live GIS dashboard.
+  <b>See the storm before it arrives.</b><br/>
+  AI/ML nowcasting of thunderstorm and lightning for India — 0-6 h thunderstorm, hail, downburst and cloudburst prediction fusing radar, satellite, lightning and model data on a live GIS console.<br/>
+  <sub>Smart India Hackathon 2026 · Problem Statement 26072 · Ministry of Earth Sciences / India Meteorological Department</sub>
 </p>
 
 ---
@@ -21,6 +22,7 @@
 ## Table of Contents
 
 * [Overview](#overview)
+* [Problem Statement Alignment](#problem-statement-alignment)
 * [Live Dashboard](#live-dashboard)
 * [Architecture](#architecture)
 * [Data Sources](#data-sources)
@@ -42,24 +44,46 @@
 
 ## Overview
 
-**MeghDrishti** ("Cloud Vision" in Sanskrit) is a full-stack, real-time convective storm nowcasting platform built for Smart India Hackathon 2026. It autonomously ingests multi-source geospatial data — IMD radar reflectivity, satellite thermal imagery, lightning strikes, and ECMWF weather grids — fuses them into a unified multi-channel raster, and runs rule-based hazard detection alongside two deep/statistical nowcasting models (pySTEPS and DGMR).
+**Agrim** (अग्रिम — "in advance", "ahead") is a full-stack, real-time convective storm nowcasting platform built for Smart India Hackathon 2026. Its whole purpose is lead time: knowing where a storm is going before it gets there. It autonomously ingests multi-source geospatial data — IMD radar reflectivity, satellite thermal imagery, lightning strikes, and ECMWF weather grids — fuses them into a unified multi-channel raster, and runs rule-based hazard detection alongside two deep/statistical nowcasting models (pySTEPS and DGMR).
 
 The system's **default hazard view detects real hail and lightning across all of India right now** — no fixed demo city, no synthetic storm — using live RainViewer radar data (IMD's own network, republished) and Blitzortung.org lightning strikes. A second per-region mode powers the Forecast and Replay pages with pySTEPS/DGMR model comparison across 10 major Indian cities.
 
 ---
 
+## Problem Statement Alignment
+
+**SIH 2026 · PS 26072 — AI/ML based nowcasting of thunderstorm and lightning using atmospheric observation including multiple radars, satellite, lightning and model data** (MoES / IMD · Software · Disaster Management).
+
+| What the problem statement asks | Where Agrim delivers it |
+|---|---|
+| **Multiple radars** | RainViewer's republished IMD radar network is mosaicked across India (`rainviewer_radar.py`), converted to dBZ, and used for hail detection, the rain-rate field and the all-India view. Per-region CAPPI reflectivity + velocity come from `radar_puller.py`. |
+| **Satellite** | Thermal IR (TIR-1), water vapour and MWIR channels are ingested from Copernicus Sentinel-3 SLSTR / EUMETSAT MSG SEVIRI and fused onto the same grid (`satellite_insat.py`, `fusion.py`). Cloud-top temperature ≤ 210 K is part of the hail rule. |
+| **Lightning** | Real strikes from the Blitzortung VLF network (MQTT), used both as hazard points and to bump hail severity when collocated (`blitzortung_lightning.py`, `hazard_india.py`). |
+| **Model data** | ECMWF Open Data 0.25° HRES supplies temperature, humidity, pressure and the wind field that steers hazard advection (`ecmwf_weather.py`, `weather_fields.py`). |
+| **AI / ML nowcasting** | pySTEPS optical-flow extrapolation (0-6 h, calibrated mm/hr) plus DeepMind's pretrained **DGMR** generative model (0-90 min) with a live side-by-side comparison; **SmaAt-UNet** architecture and training scaffold included. |
+| **Nowcast of thunderstorm & lightning** | Four physically-thresholded hazards — hail, lightning, downburst, cloudburst — with per-cell storm ETAs and district SMS alerts. |
+| **Disaster management** | Alerting with per-district cool-down, GeoJSON export, ISRO/MOSDAC GIS overlays (rivers, basins, landslide risk, roads, airports), and a historical replay page for after-action review. |
+
+**Transparency by design.** Every source can run `live` or fall back to `synthetic`; the API reports which is which at `/system/status`, and the console shows it on the landing page and in the *Data Provenance* panel. Nothing synthetic is ever presented as live.
+
+---
+
 ## Live Dashboard
 
-The React + TypeScript dashboard runs at `http://localhost:5173` and communicates with the FastAPI backend at `http://localhost:8000`.
+The React + TypeScript console runs at `http://localhost:5173` and communicates with the FastAPI backend at `http://localhost:8000`.
 
 <p align="center">
-  <img src="assets/dashboard_hazards.png" width="48%" style="border-radius:10px; margin:1%;"/>
-  <img src="assets/dashboard_forecast.png" width="48%" style="border-radius:10px; margin:1%;"/>
+  <img src="assets/landing.png" width="48%" style="border-radius:10px; margin:1%;"/>
+  <img src="assets/console.png" width="48%" style="border-radius:10px; margin:1%;"/>
 </p>
 <p align="center">
-  <img src="assets/dashboard_layers.png" width="48%" style="border-radius:10px; margin:1%;"/>
-  <img src="assets/dashboard_replay.png" width="48%" style="border-radius:10px; margin:1%;"/>
+  <img src="assets/rain-simulation.png" width="48%" style="border-radius:10px; margin:1%;"/>
+  <img src="assets/hazards.png" width="48%" style="border-radius:10px; margin:1%;"/>
 </p>
+
+<sub>Console screenshots were captured against a synthetic all-India radar mosaic (the capture machine had no route to RainViewer/Blitzortung), so the storms shown are illustrative. With `USE_LIVE_*` enabled the same views render real IMD-network radar and real strikes.</sub>
+
+**Rain simulation.** The *RAIN SIM* toggle turns the current radar-derived rain-rate field into a moving picture: a smooth intensity layer, a particle system whose density and streak length follow local rain rate and whose slant follows the local wind, ground splashes, real-strike lightning flashes, and callouts for the strongest storm cores. It follows the lead-time slider; for lead times > 0 the radar echo is advected along the ambient wind field (persistence + steering flow — labelled as such in the panel), and in regional mode it plays the pySTEPS forecast frames instead.
 
 ---
 
@@ -115,7 +139,7 @@ The React + TypeScript dashboard runs at `http://localhost:5173` and communicate
 
 ## Data Sources
 
-MeghDrishti uses **five real, free data sources** as opt-in live paths (each behind a `USE_LIVE_*` flag in `.env`), falling back to synthetic mock data automatically if any source is unavailable:
+Agrim uses **five real, free data sources** as opt-in live paths (each behind a `USE_LIVE_*` flag in `.env`), falling back to synthetic mock data automatically if any source is unavailable:
 
 | Layer | Real Source | API Key | Notes |
 |---|---|---|---|
@@ -238,6 +262,8 @@ The FastAPI backend exposes the following endpoints at `http://localhost:8000`:
 | `/raw-layers` | GET | Satellite IR + radar reflectivity as base64 PNG overlays |
 | `/weather-layers` | GET | Temp/humidity/wind/pressure/rainfall/risk grids. `?lead_time=N` |
 | `/wind-vectors` | GET | Sparse wind arrow points for symbol rendering |
+| `/rain-field` | GET | Quantised rain-rate grid + wind grid for the rain simulation. `?lead_time=N` advects the radar echo by wind |
+| `/system/status` | GET | Provenance: which sources are live vs synthetic, live hazard counts, model horizons |
 | `/storm-eta` | GET | Storm motion cells with bearing + speed from pySTEPS LK field |
 | `/region-forecast` | GET | Point-sampled weather trend at `?lat=&lon=&lead_time=N` |
 | `/regions` | GET | List selectable demo regions |
@@ -251,7 +277,7 @@ Full interactive docs at `http://localhost:8000/docs`.
 
 ## GIS Layers
 
-MeghDrishti integrates **23 genuine ISRO/NRSC/MOSDAC WMS layers**, sourced by driving MOSDAC's live CloudBurst DSS with a real browser and capturing each layer's actual WMS request:
+Agrim integrates **23 genuine ISRO/NRSC/MOSDAC WMS layers**, sourced by driving MOSDAC's live CloudBurst DSS with a real browser and capturing each layer's actual WMS request:
 
 **7 Base Maps:** Bhuvan Maps, OSM, DEM, LULC, Natural Earth, Black Marble, True Marble
 
@@ -304,8 +330,8 @@ When any district's real-time hazard rollup hits the configured severity thresho
 ### Backend
 
 ```bash
-git clone https://github.com/RohitOPBoi/Megh.git
-cd Megh
+git clone <your-fork-or-repo-url> agrim
+cd agrim
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -337,7 +363,9 @@ npm install
 npm run dev
 ```
 
-Opens at `http://localhost:5173` and proxies API calls to `http://localhost:8000`.
+Opens at `http://localhost:5173`. The dashboard talks to the API at `http://localhost:8000` by default; point it elsewhere with `VITE_API_BASE` (see `nowcast/dashboard/.env.example`).
+
+Everything the UI needs to look correct ships with the repo — fonts are bundled (no CDN), and the India base map (official outline, state borders, labels, graticule) is a local vector layer in `public/geo/`, so the console renders fully even on an air-gapped network. Esri relief tiles are an optional enhancement on top.
 
 ---
 
@@ -383,12 +411,12 @@ All configuration is via environment variables. Copy `.env.example` to `.env`:
 |   |   +-- settings.py                 # Hazard thresholds, regions, env flags
 |   +-- dashboard/                      # React + TypeScript + Vite frontend
 |   |   +-- src/
-|   |   |   +-- components/             # HazardsPage, ForecastPage, ReplayPage, etc.
-|   |   |   +-- map/                    # MapLibre GL layers (hazards, radar, WMS)
+|   |   |   +-- components/             # Landing, HazardsPage, ForecastPage, ReplayPage, RainSimulation
+|   |   |   +-- map/                    # MapLibre GL layers (India base, hazards, radar, WMS)
 |   |   |   +-- lib/
 |   |   |       +-- mosdacLayers.ts     # All 23 ISRO/MOSDAC WMS layer definitions
-|   |   +-- legacy/
-|   |       +-- index.html              # Original single-file HTML/JS (reference)
+|   |   |       +-- rain.ts             # Rain-field decode, palette, storm-core detection
+|   |   +-- public/geo/                 # Offline India outline + state boundaries (GeoJSON)
 |   +-- ingestion/
 |   |   +-- imd_nowcast.py              # Tomorrow.io station feed + Blitzortung
 |   |   +-- blitzortung_lightning.py    # Real VLF lightning via MQTT
@@ -410,14 +438,14 @@ All configuration is via environment variables. Copy `.env.example` to `.env`:
 |       +-- fusion.py                   # Multi-channel raster stack + rolling buffer
 |       +-- storm_track.py              # Canonical synthetic storm trajectory
 |       +-- weather_fields.py           # ECMWF regrid + synthetic ambient fields
+|       +-- rain_field.py               # Z-R rain rate + wind advection for the rain simulation
 |       +-- synthetic_radar.py          # Gaussian cell mock for fallback
 |       +-- backtest.py                 # Historical replay framework
 |       +-- load_historical_replay.py   # Historical data loader
 +-- test_backend.py                     # Integration tests for all API endpoints
 +-- requirements.txt
-+-- .env.example
-+-- WRITEUP.md                          # One-page technical write-up
-+-- project.md                          # Full project plan (SIH 2026)
++-- .env.example                        # Every configurable flag, all off by default
++-- logo.svg / logo.png                 # Agrim mark
 ```
 
 ---

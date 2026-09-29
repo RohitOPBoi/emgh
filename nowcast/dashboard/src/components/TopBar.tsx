@@ -39,21 +39,14 @@ export function TopBar({
     <header className="topbar" role="banner">
       {/* ── Left: Brand & Threat Indicator ──────────────────────────── */}
       <div className="brand">
-        <a href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-          <div className="brand-mark" title="Megh Convective Radar & Nowcasting System">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M3 20V5h3.5l5.5 8.5L17.5 5H21v15h-3.5V10.2L12.5 18h-1L6.5 10.2V20H3Z"
-                fill="var(--text)"
-              />
-              <circle cx="12" cy="6.5" r="1.5" fill="var(--accent)" />
-            </svg>
-          </div>
+        <a href="/" className="brand-link" aria-label="Agrim — back to home">
+          <img className="brand-logo" src="/agrim-mark.svg" alt="" width={30} height={30} />
           <div className="brand-text">
             <h1>
-              Megh
-              <span className="badge">OPERATIONS</span>
+              <span className="brand-word">AGRIM</span>
+              <span className="brand-deva" lang="hi">अग्रिम</span>
             </h1>
+            <span className="brand-tag">Nowcast Operations</span>
           </div>
         </a>
 

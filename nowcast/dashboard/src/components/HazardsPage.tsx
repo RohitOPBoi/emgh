@@ -27,8 +27,10 @@ function buildRows(hazards: HazardsResponse | null, stormCells: StormCell[] | nu
   const rows: Row[] = [];
   for (const f of hazards.features) {
     const [lon, lat] = f.geometry.coordinates;
-    const location = f.properties.name || f.properties.station_id || `${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E`;
     for (const h of f.properties.hazards) {
+      const near = h.district ? `${h.district}${h.state ? `, ${h.state}` : ""}` : "";
+      const location =
+        f.properties.name || f.properties.station_id || near || `${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E`;
       const metric = metricFor(h.type, h);
       const matchingCell = f.properties.station_id
         ? (stormCells ?? []).find((c) => c.station_id === f.properties.station_id && c.hazards.some((ch) => ch.type === h.type))
@@ -78,9 +80,15 @@ export function HazardsPage({
   return (
     <div className="hazards-page" role="dialog" aria-label="Hazard Detection Telemetry">
       <div className="hazards-page-head">
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <AlertTriangle size={18} style={{ color: "var(--high)" }} />
-          <h1>Active Severe Hazards Telemetry ({rows.length})</h1>
+        <div className="page-title">
+          <span className="page-eyebrow mono">
+            <AlertTriangle size={12} /> 03 · Hazards
+          </span>
+          <h1>Active hazards</h1>
+          <p className="page-sub">
+            Hail and lightning detected across India right now. Select a row to fly the map to it.
+          </p>
+          {hazards?.note && <p className="page-note mono">{hazards.note}</p>}
         </div>
         <button className="icon-btn" onClick={onClose} aria-label="Close page" style={{ width: 32, height: 32 }}>
           <X size={16} />
@@ -88,6 +96,23 @@ export function HazardsPage({
       </div>
 
       <div className="hazards-page-body">
+        <div className="page-stats" aria-label="Hazard totals">
+          <div className="page-stat">
+            <strong>{rows.length}</strong>
+            <span className="mono">Total detections</span>
+          </div>
+          <div className="page-stat">
+            <strong style={{ color: "var(--high-text)" }}>{rows.filter((r) => r.severity === "high").length}</strong>
+            <span className="mono">High severity</span>
+          </div>
+          {ALL_TYPES.map((t) => (
+            <div className="page-stat" key={t}>
+              <strong style={{ color: HAZARD_COLOR[t] }}>{counts[t] ?? 0}</strong>
+              <span className="mono">{t}</span>
+            </div>
+          ))}
+        </div>
+
         <div className="hazard-filter-row">
           <button
             className={`hazard-filter-btn ${filter === "all" ? "active" : ""}`}

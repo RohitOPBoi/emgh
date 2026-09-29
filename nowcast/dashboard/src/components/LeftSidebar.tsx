@@ -2,6 +2,7 @@ import { Activity, Download, MapPin, Database, Gauge, ChevronLeft, ChevronRight,
 import { useEffect, useState } from "react";
 import type { HazardsResponse, ModelId, RegionsResponse } from "../types";
 import { api } from "../api";
+import { useSystemStatus } from "../hooks/useSystemStatus";
 
 const HAZARD_LABELS: Record<string, string> = {
   hail: "Hail Cells",
@@ -25,7 +26,7 @@ function exportHazards(hazards: HazardsResponse | null) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `megh-hazards-${new Date().toISOString().replace(/[:.]/g, "-")}.geojson`;
+  a.download = `agrim-hazards-${new Date().toISOString().replace(/[:.]/g, "-")}.geojson`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -97,6 +98,8 @@ export function LeftSidebar({
   onToggleCollapse?: () => void;
   onOpenHazards?: () => void;
 }) {
+  const { status } = useSystemStatus();
+  const sources = status ? Object.values(status.sources) : [];
   const counts = countByType(hazards);
   const totalHazards = counts.hail + counts.lightning;
 
@@ -244,42 +247,38 @@ export function LeftSidebar({
           </div>
         </div>
 
-        {/* ── Ingestion Sources ─────────────────────────────────────────── */}
+        {/* ── Ingestion Sources (real provenance from /system/status) ────── */}
         <div className="panel-section">
           <div className="section-title">
             <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <Database size={13} style={{ color: "var(--text-3)" }} />
-              Sensor Ingestion Feeds
+              Data Provenance
             </span>
-            <span className="count">3 feeds</span>
+            <span className="count">{sources.length || "—"} feeds</span>
           </div>
-          <div className="source-toggle">
-            <div className="name">
-              <div className={`dot ${apiOk ? "dot--low" : "dot--high"}`} />
-              <span>IMD Doppler Radar</span>
+          {sources.length === 0 && (
+            <div className="label mono" style={{ padding: "6px 0" }}>
+              {apiOk ? "READING SOURCE STATUS…" : "BACKEND UNREACHABLE"}
             </div>
-            <div className="status" style={{ color: apiOk ? "var(--low-text)" : "var(--high-text)" }}>
-              {apiOk ? "ONLINE" : "WAIT"}
-            </div>
-          </div>
-          <div className="source-toggle">
-            <div className="name">
-              <div className={`dot ${apiOk ? "dot--low" : "dot--high"}`} />
-              <span>INSAT-3DR / Sentinel IR</span>
-            </div>
-            <div className="status" style={{ color: apiOk ? "var(--low-text)" : "var(--high-text)" }}>
-              {apiOk ? "ONLINE" : "WAIT"}
-            </div>
-          </div>
-          <div className="source-toggle">
-            <div className="name">
-              <div className={`dot ${apiOk ? "dot--low" : "dot--high"}`} />
-              <span>Blitzortung VLF Lightning</span>
-            </div>
-            <div className="status" style={{ color: apiOk ? "var(--low-text)" : "var(--high-text)" }}>
-              {apiOk ? "STREAMING" : "WAIT"}
-            </div>
-          </div>
+          )}
+          {sources.map((src) => {
+            const state = src.mode === "synthetic" ? "synthetic" : src.receiving ? "live" : "waiting";
+            const color = { live: "low", waiting: "mod", synthetic: "mod" }[state];
+            return (
+              <div className="source-toggle" key={src.label} title={`${src.provider} — ${src.mode}`}>
+                <div className="name">
+                  <div className={`dot dot--${color}`} />
+                  <span>
+                    {src.label}
+                    <small className="source-provider">{src.provider}</small>
+                  </span>
+                </div>
+                <div className="status" style={{ color: `var(--${color}-text)` }}>
+                  {state === "live" ? "LIVE" : state === "waiting" ? "NO DATA" : "SYNTH"}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* ── Operational Actions ───────────────────────────────────────── */}

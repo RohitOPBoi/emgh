@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { Feature } from "geojson";
-import { useMeghMap } from "../MapProvider";
+import { useAgrimMap } from "../MapProvider";
 import type { WindPoint } from "../../types";
 
 function createArrowIcon(size: number): ImageData {
@@ -25,7 +25,7 @@ function createArrowIcon(size: number): ImageData {
 }
 
 export function WindArrows({ points, visible }: { points: WindPoint[] | null; visible: boolean }) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
 
   useEffect(() => {
     if (!map || !ready || !points || map.getSource("wind-arrows")) return;

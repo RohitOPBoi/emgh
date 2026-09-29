@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useMeghMap } from "../MapContext";
+import { useAgrimMap } from "../MapContext";
 import { OVERLAY_LAYERS, wmsTileUrl } from "../../lib/mosdacLayers";
 
 /** Real MOSDAC GIS reference overlays (roads, rivers, boundaries, hazard
@@ -7,7 +7,7 @@ import { OVERLAY_LAYERS, wmsTileUrl } from "../../lib/mosdacLayers";
  * the base map/satellite/radar but below the hazard heatmaps and station
  * markers, so nowcast hazards stay the visual focus. */
 export function WmsOverlayLayers({ activeIds }: { activeIds: Set<string> }) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
 
   useEffect(() => {
     if (!map || !ready) return;

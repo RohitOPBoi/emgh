@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { GeoJSONSource } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
-import { useMeghMap } from "../MapProvider";
+import { useAgrimMap } from "../MapProvider";
 
 const REGION_HALF_DEG = 0.15;
 
@@ -20,7 +20,7 @@ function regionBoxPolygon(lat: number, lon: number): FeatureCollection {
 /** Dashed selection box drawn around a user-clicked region — must be the
  * topmost data layer so it's never hidden under a heatmap/raster overlay. */
 export function RegionBox({ region }: { region: { lat: number; lon: number } | null }) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
 
   useEffect(() => {
     if (!map || !ready || map.getSource("region-box")) return;

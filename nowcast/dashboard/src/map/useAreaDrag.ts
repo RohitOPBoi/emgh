@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { MapMouseEvent } from "maplibre-gl";
-import { useMeghMap } from "./MapProvider";
+import { useAgrimMap } from "./MapProvider";
 import type { Bbox } from "../types";
 
 /** Click-drag-release rectangle select, active only while `active` is true.
@@ -13,7 +13,7 @@ export function useAreaDrag(
   onDrawing: (bbox: Bbox | null) => void,
   onSelect: (bbox: Bbox) => void
 ) {
-  const { map, ready } = useMeghMap();
+  const { map, ready } = useAgrimMap();
   const startRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {

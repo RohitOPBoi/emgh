@@ -35,8 +35,9 @@ function Root() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  function goToDashboard() {
-    window.history.pushState({}, '', '/dashboard');
+  function goToDashboard(panel?: string) {
+    const url = panel ? `/dashboard?panel=${encodeURIComponent(panel)}` : '/dashboard';
+    window.history.pushState({}, '', url);
     setView('dashboard');
   }
 

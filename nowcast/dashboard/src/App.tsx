@@ -76,10 +76,24 @@ function Dashboard() {
   const [areaError, setAreaError] = useState<string | null>(null);
   const [areaLoading, setAreaLoading] = useState(false);
   const [areaVar, setAreaVar] = useState<AreaVarId>("none");
-  const [activePanel, setActivePanel] = useState<ActivePanel>("none");
+  const [activePanel, setActivePanel] = useState<ActivePanel>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get("panel");
+      if (p === "hazards" || p === "forecast" || p === "replay" || p === "layers") return p;
+    } catch {
+      /* ignore */
+    }
+    return "none";
+  });
   const [rainSimVisible, setRainSimVisible] = useState(false);
   const [rainSlot, setRainSlot] = useState<HTMLElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("play") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isCanvasMode, setIsCanvasMode] = useState(false);

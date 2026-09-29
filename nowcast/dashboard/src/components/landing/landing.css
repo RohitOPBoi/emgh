@@ -349,6 +349,21 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  transition: background 0.25s, transform 0.25s;
+}
+.ag-ribbon-cell--interactive {
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ag-ribbon-cell--interactive:hover {
+  background: rgba(166, 227, 255, 0.06);
+  transform: translateY(-2px);
+}
+.ag-ribbon-cell--interactive:hover .ag-ribbon-label {
+  color: var(--ice);
+}
+.ag-ribbon-cell--interactive:hover .ag-ribbon-meta {
+  color: var(--ink);
 }
 .ag-ribbon-cell + .ag-ribbon-cell {
   padding-left: clamp(12px, 2vw, 28px);
@@ -525,6 +540,12 @@
 }
 .ag-hazard-row:hover {
   background: linear-gradient(90deg, rgba(166, 227, 255, 0.1), transparent 70%);
+}
+.ag-hazard-row--interactive {
+  cursor: pointer;
+}
+.ag-hazard-row--interactive:hover {
+  border-bottom-color: rgba(166, 227, 255, 0.4);
 }
 .ag-hz-idx {
   color: var(--ink-3);

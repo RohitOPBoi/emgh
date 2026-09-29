@@ -16,7 +16,7 @@ import "./components/landing/landing.css";
 gsap.registerPlugin(ScrollTrigger);
 
 interface HomePageProps {
-  onNavigateToDashboard: () => void;
+  onNavigateToDashboard: (panel?: string) => void;
 }
 
 // Scroll-progress windows where each act becomes "current" (matches the
@@ -199,7 +199,7 @@ export default function HomePage({ onNavigateToDashboard }: HomePageProps) {
                 cloudburst nowcast for India - and tells you when the storm will reach you.
               </p>
               <div className="ag-actions">
-                <button className="ag-btn ag-btn--solid" onClick={onNavigateToDashboard}>
+                <button className="ag-btn ag-btn--solid" onClick={() => onNavigateToDashboard()}>
                   Launch console <ArrowRight size={16} />
                 </button>
                 <button className="ag-btn ag-btn--ghost" onClick={() => handleScrollToTier(1)}>
@@ -209,35 +209,63 @@ export default function HomePage({ onNavigateToDashboard }: HomePageProps) {
             </div>
 
             <div className="ag-ribbon ag-rise" style={stagger(3)} aria-label="Live system figures">
-              <div className="ag-ribbon-cell">
+              <div
+                className="ag-ribbon-cell ag-ribbon-cell--interactive"
+                role="button"
+                tabIndex={0}
+                onClick={() => onNavigateToDashboard("hazards")}
+                onKeyDown={(e) => e.key === "Enter" && onNavigateToDashboard("hazards")}
+                title="View severe hazard feeds in console"
+              >
                 <span className="ag-mono ag-ribbon-label">
                   <span className={`ag-dot ${live ? "ag-dot--online" : ""}`} /> Active hazards
                 </span>
                 <span className="ag-ribbon-value">{num(status?.hazards.total)}</span>
-                <span className="ag-mono ag-ribbon-meta">Hail + lightning · all India</span>
+                <span className="ag-mono ag-ribbon-meta">Hail + lightning · click to inspect</span>
               </div>
-              <div className="ag-ribbon-cell">
+              <div
+                className="ag-ribbon-cell ag-ribbon-cell--interactive"
+                role="button"
+                tabIndex={0}
+                onClick={() => onNavigateToDashboard("hazards")}
+                onKeyDown={(e) => e.key === "Enter" && onNavigateToDashboard("hazards")}
+                title="View tracked storm cells & velocity in console"
+              >
                 <span className="ag-mono ag-ribbon-label">Storm cells tracked</span>
                 <span className="ag-ribbon-value">{num(status?.storm_cells)}</span>
                 <span className="ag-mono ag-ribbon-meta">Optical-flow motion field</span>
               </div>
-              <div className="ag-ribbon-cell">
+              <div
+                className="ag-ribbon-cell ag-ribbon-cell--interactive"
+                role="button"
+                tabIndex={0}
+                onClick={() => onNavigateToDashboard("forecast")}
+                onKeyDown={(e) => e.key === "Enter" && onNavigateToDashboard("forecast")}
+                title="Open pySTEPS nowcast radar forecast"
+              >
                 <span className="ag-mono ag-ribbon-label">Nowcast horizon</span>
                 <span className="ag-ribbon-value">
                   0–{pystepsHours}
                   <small>HRS</small>
                 </span>
                 <span className="ag-mono ag-ribbon-meta">
-                  {status?.models.pysteps.step_min ?? SPEC.stepMin}-minute steps
+                  {status?.models.pysteps.step_min ?? SPEC.stepMin}-min steps · open forecast
                 </span>
               </div>
-              <div className="ag-ribbon-cell">
+              <div
+                className="ag-ribbon-cell ag-ribbon-cell--interactive"
+                role="button"
+                tabIndex={0}
+                onClick={() => onNavigateToDashboard("layers")}
+                onKeyDown={(e) => e.key === "Enter" && onNavigateToDashboard("layers")}
+                title="Inspect data layers & ingest feeds"
+              >
                 <span className="ag-mono ag-ribbon-label">Refresh cycle</span>
                 <span className="ag-ribbon-value">
                   {num(status?.ingest_cycle_min)}
                   {live && <small>MIN</small>}
                 </span>
-                <span className="ag-mono ag-ribbon-meta">Radar · lightning · model</span>
+                <span className="ag-mono ag-ribbon-meta">Radar · lightning · layers</span>
               </div>
             </div>
 
@@ -327,6 +355,7 @@ export default function HomePage({ onNavigateToDashboard }: HomePageProps) {
                 text="Intense reflectivity under a very cold cloud top with active lightning - the signature of large hail."
                 count={num(byType.hail ?? (live ? 0 : undefined))}
                 unit="Detected now"
+                onClick={() => onNavigateToDashboard("hazards")}
               />
               <HazardRow
                 i={2}
@@ -338,6 +367,7 @@ export default function HomePage({ onNavigateToDashboard }: HomePageProps) {
                 text="Real strike locations fused with reflectivity, ranked by IMD's own probability categories."
                 count={num(byType.lightning ?? (live ? 0 : undefined))}
                 unit="Detected now"
+                onClick={() => onNavigateToDashboard("hazards")}
               />
               <HazardRow
                 i={3}
@@ -349,6 +379,7 @@ export default function HomePage({ onNavigateToDashboard }: HomePageProps) {
                 text="No free Doppler feed exists, so Agrim flags intense, sharp-edged cores likely to collapse."
                 count={num(byType.downburst ?? (live ? 0 : undefined))}
                 unit="Potential (proxy)"
+                onClick={() => onNavigateToDashboard("hazards")}
               />
               <HazardRow
                 i={4}
@@ -360,6 +391,7 @@ export default function HomePage({ onNavigateToDashboard }: HomePageProps) {
                 text="Radar rain rate crossing IMD's very-heavy threshold raises a flash-flood warning."
                 count={num(byType.cloudburst ?? (live ? 0 : undefined))}
                 unit="Detected now"
+                onClick={() => onNavigateToDashboard("hazards")}
               />
             </div>
 
@@ -394,7 +426,7 @@ export default function HomePage({ onNavigateToDashboard }: HomePageProps) {
               the people who have to decide before the sky does.
             </p>
             <div className="ag-rise" style={stagger(3)}>
-              <button className="ag-btn ag-btn--solid ag-btn--xl" onClick={onNavigateToDashboard}>
+              <button className="ag-btn ag-btn--solid ag-btn--xl" onClick={() => onNavigateToDashboard()}>
                 Enter Agrim console <ArrowRight size={18} />
               </button>
             </div>
@@ -439,11 +471,17 @@ function HazardRow(props: {
   count: string;
   unit: string;
   tag?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div
-      className="ag-hazard-row ag-rise"
+      className={`ag-hazard-row ag-rise ${props.onClick ? "ag-hazard-row--interactive" : ""}`}
       style={{ ...stagger(2 + props.i), ["--hz" as string]: props.color } as CSSProperties}
+      role={props.onClick ? "button" : undefined}
+      tabIndex={props.onClick ? 0 : undefined}
+      onClick={props.onClick}
+      onKeyDown={(e) => props.onClick && e.key === "Enter" && props.onClick()}
+      title={props.onClick ? `Open ${props.name} in console hazards view` : undefined}
     >
       <span className="ag-mono ag-hz-idx">0{props.i}</span>
       <span className="ag-hz-name">
